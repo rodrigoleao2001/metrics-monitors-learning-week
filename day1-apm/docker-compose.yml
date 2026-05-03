@@ -1,0 +1,78 @@
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-agent-day1
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_TAGS=env:learning-week day:1 spec:apm
+      - DD_HOSTNAME=learning-week-apm
+      - DD_LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - day1-network
+
+  flask-app:
+    build:
+      context: ./app
+    container_name: flask-store-app
+    environment:
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=flask-store
+      - DD_ENV=learning-week
+      - DD_VERSION=1.0.0
+      - DD_TRACE_ANALYTICS_ENABLED=true
+    ports:
+      - "5000:5000"
+    depends_on:
+      - datadog-agent
+    networks:
+      - day1-network
+
+  traffic-generator:
+    build:
+      context: ./traffic-generator
+    container_name: traffic-gen-day1
+    environment:
+      - DD_AGENT_HOST=datadog-agent
+    volumes:
+      - ./metric_types_demo.py:/demo/metric_types_demo.py:ro
+    depends_on:
+      - flask-app
+    networks:
+      - day1-network
+    restart: unless-stopped
+
+  metric-types-demo:
+    build:
+      context: ./traffic-generator
+    container_name: metric-types-demo-day1
+    environment:
+      - DD_AGENT_HOST=datadog-agent
+    volumes:
+      - ./metric_types_demo.py:/demo/metric_types_demo.py:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 15
+        while true; do
+          python -u /demo/metric_types_demo.py
+          sleep 60
+        done
+    depends_on:
+      - datadog-agent
+    networks:
+      - day1-network
+    restart: unless-stopped
+
+networks:
+  day1-network:
+    driver: bridge

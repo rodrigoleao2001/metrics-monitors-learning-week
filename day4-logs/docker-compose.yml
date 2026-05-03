@@ -1,0 +1,112 @@
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-agent-day4
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=false
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:dd-agent-day4
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_TAGS=env:learning-week day:4 spec:logs
+      - DD_HOSTNAME=learning-week-logs
+      - DD_LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - day4-network
+
+  log-app:
+    build:
+      context: ./app
+    container_name: log-generator-app
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "python", "service": "log-generator"}]'
+    depends_on:
+      - datadog-agent
+    networks:
+      - day4-network
+    restart: unless-stopped
+
+  nginx-proxy:
+    build:
+      context: ./nginx
+    container_name: nginx-proxy-day4
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "nginx", "service": "nginx-proxy"}]'
+    ports:
+      - "8080:80"
+    depends_on:
+      - log-app
+    networks:
+      - day4-network
+
+  nginx-traffic:
+    image: curlimages/curl:latest
+    container_name: nginx-traffic-day4
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 10
+        while true; do
+          r=$$(( RANDOM % 100 ))
+          if [ $$r -lt 50 ]; then
+            curl -s http://nginx-proxy:80/ > /dev/null 2>&1
+          elif [ $$r -lt 65 ]; then
+            curl -s http://nginx-proxy:80/api/health > /dev/null 2>&1
+          elif [ $$r -lt 75 ]; then
+            curl -s http://nginx-proxy:80/admin/secret > /dev/null 2>&1
+          elif [ $$r -lt 85 ]; then
+            curl -s http://nginx-proxy:80/broken/endpoint > /dev/null 2>&1
+          else
+            curl -s http://nginx-proxy:80/nonexistent/path > /dev/null 2>&1
+          fi
+          sleep 0.$$(( RANDOM % 9 + 1 ))
+        done
+    depends_on:
+      - nginx-proxy
+    networks:
+      - day4-network
+    restart: unless-stopped
+
+  log-spammer:
+    image: python:3.11-slim
+    container_name: log-spammer-day4
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "python", "service": "retry-service"}]'
+    entrypoint: ["python", "-u", "-c"]
+    command:
+      - |
+        import json, random, time
+        time.sleep(15)
+        while True:
+            time.sleep(random.uniform(20, 60))
+            correlation_id = f"req-{random.randint(10000, 99999)}"
+            for i in range(random.randint(20, 80)):
+                log = {
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                    "level": "ERROR",
+                    "service": "retry-service",
+                    "message": f"Connection refused to downstream - retry {i+1}",
+                    "error_type": "ConnectionRefusedError",
+                    "correlation_id": correlation_id,
+                    "retry_attempt": i + 1,
+                    "region": random.choice(["br-south", "br-southeast", "br-northeast"]),
+                    "host": f"retry-{random.randint(1,3):02d}",
+                }
+                print(json.dumps(log), flush=True)
+                time.sleep(0.05)
+    depends_on:
+      - datadog-agent
+    networks:
+      - day4-network
+    restart: unless-stopped
+
+networks:
+  day4-network:
+    driver: bridge

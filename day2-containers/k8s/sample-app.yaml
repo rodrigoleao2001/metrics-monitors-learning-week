@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-stable
+  namespace: default
+  labels:
+    app: nginx-stable
+    team: platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-stable
+  template:
+    metadata:
+      labels:
+        app: nginx-stable
+        team: platform
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-stable
+  namespace: default
+spec:
+  selector:
+    app: nginx-stable
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-api
+  namespace: default
+  labels:
+    app: web-api
+    team: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web-api
+  template:
+    metadata:
+      labels:
+        app: web-api
+        team: backend
+    spec:
+      containers:
+        - name: web-api
+          image: hashicorp/http-echo:latest
+          args:
+            - "-text=web-api healthy"
+            - "-listen=:8080"
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "30m"
+              memory: "32Mi"
+            limits:
+              cpu: "50m"
+              memory: "64Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-api
+  namespace: default
+spec:
+  selector:
+    app: web-api
+  ports:
+    - port: 8080
+      targetPort: 8080

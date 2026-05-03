@@ -1,0 +1,32 @@
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-agent-day5a
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_HISTOGRAM_PERCENTILES=0.50 0.75 0.90 0.95 0.99
+      - DD_TAGS=env:learning-week day:5 spec:dynamic lab:ecommerce
+      - DD_HOSTNAME=learning-week-ecommerce
+      - DD_LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - day5a-network
+
+  ecommerce-app:
+    build:
+      context: ./app
+    container_name: ecommerce-metrics
+    depends_on:
+      - datadog-agent
+    networks:
+      - day5a-network
+    restart: unless-stopped
+
+networks:
+  day5a-network:
+    driver: bridge

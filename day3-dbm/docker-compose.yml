@@ -1,0 +1,63 @@
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-agent-day3
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=false
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_DBM_PROPAGATION_MODE=full
+      - DD_TAGS=env:learning-week day:3 spec:dbm
+      - DD_HOSTNAME=learning-week-dbm
+      - DD_LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - ./datadog/conf.d/postgres.d/conf.yaml:/etc/datadog-agent/conf.d/postgres.d/conf.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - day3-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-dbm
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_DB=learning_week
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - pgdata:/var/lib/postgresql/data
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d learning_week"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - day3-network
+
+  load-generator:
+    build:
+      context: ./load-generator
+    container_name: db-load-gen-day3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - day3-network
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  day3-network:
+    driver: bridge

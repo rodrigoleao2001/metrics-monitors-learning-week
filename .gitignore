@@ -1,0 +1,40 @@
+# Local secrets
+.env
+**/.env
+*.env.local
+
+# macOS / editor files
+.DS_Store
+.~lock*
+*.tmp
+*.swp
+*.swo
+
+# Local tool state
+.claude/
+__pycache__/
+*.py[cod]
+
+# Runtime data and diagnostics
+*.log
+*.db
+day1-apm/PRDOBQTDREWR01/
+day1-apm/salesforce-provider-logs/
+
+# Local presentation authoring files
+*.key
+*-before-*.pptx
+build_slides.py
+generate_pptx*.py
+
+# Local-only materials
+**/PRESENTER_GUIDE.md
+day5-dynamic/DYNAMIC_GUIDE.md
+create_student_package.sh
+setup_all.sh
+
+# Generated local artifacts
+.presentation_workspaces/
+presentation-workspaces/
+out/
+dist/

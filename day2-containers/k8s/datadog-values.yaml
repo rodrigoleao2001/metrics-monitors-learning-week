@@ -1,0 +1,39 @@
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  appKeyExistingSecret: datadog-secret
+
+  clusterName: learning-week-k8s
+
+  tags:
+    - "env:learning-week"
+    - "day:2"
+    - "spec:containers"
+
+  kubelet:
+    tlsVerify: false
+
+  collectEvents: true
+  leaderElection: true
+  logs:
+    enabled: true
+    containerCollectAll: true
+  apm:
+    portEnabled: true
+  processAgent:
+    enabled: true
+    processCollection: true
+  dogstatsd:
+    useHostPort: true
+  operator:
+    enabled: false
+
+clusterAgent:
+  enabled: true
+  metricsProvider:
+    enabled: true
+  admissionController:
+    enabled: false
+
+agents:
+  tolerations:
+    - operator: Exists

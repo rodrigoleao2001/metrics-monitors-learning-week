@@ -1,0 +1,32 @@
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-agent-day5b
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_HISTOGRAM_PERCENTILES=0.50 0.75 0.90 0.95 0.99
+      - DD_TAGS=env:learning-week day:5 spec:dynamic lab:iot
+      - DD_HOSTNAME=learning-week-iot
+      - DD_LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - day5b-network
+
+  iot-app:
+    build:
+      context: ./app
+    container_name: iot-metrics
+    depends_on:
+      - datadog-agent
+    networks:
+      - day5b-network
+    restart: unless-stopped
+
+networks:
+  day5b-network:
+    driver: bridge

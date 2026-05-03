@@ -1,0 +1,25 @@
+init_config:
+
+instances:
+  - host: postgres
+    port: 5432
+    username: datadog
+    password: datadog_password
+    dbname: learning_week
+    dbm: true
+    collect_activity: true
+    collect_resources:
+      enabled: true
+    collect_database_size_metrics: true
+    collect_wal_metrics: true
+    data_directory: /var/lib/postgresql/data
+    query_metrics:
+      enabled: true
+    query_activity:
+      enabled: true
+    query_samples:
+      enabled: true
+    tags:
+      - "env:learning-week"
+      - "day:3"
+      - "spec:dbm"
