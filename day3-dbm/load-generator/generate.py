@@ -6,8 +6,23 @@ Generates a mix of fast queries, slow sequential scans, lock contention, and con
 import random
 import time
 import threading
+import socket
 import psycopg2
 from psycopg2 import pool
+
+STATSD_HOST = "datadog-agent"
+STATSD_PORT = 8125
+STATSD_TAGS = "env:learning-week,day:3"
+
+
+def statsd_count(metric, value=1):
+    msg = f"{metric}:{value}|c|#{STATSD_TAGS}"
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.sendto(msg.encode(), (STATSD_HOST, STATSD_PORT))
+        sock.close()
+    except Exception:
+        pass
 
 DB_CONFIG = {
     "host": "postgres",
@@ -44,8 +59,10 @@ def fast_queries():
             cur.fetchall()
             cur.close()
             get_pool().putconn(conn)
+            statsd_count("pg_app.queries.total")
         except Exception:
-            pass
+            statsd_count("pg_app.queries.total")
+            statsd_count("pg_app.queries.errors")
         time.sleep(random.uniform(0.1, 0.5))
 
 
@@ -70,8 +87,10 @@ def slow_queries():
             cur.fetchall()
             cur.close()
             get_pool().putconn(conn)
+            statsd_count("pg_app.queries.total")
         except Exception:
-            pass
+            statsd_count("pg_app.queries.total")
+            statsd_count("pg_app.queries.errors")
         time.sleep(random.uniform(1, 3))
 
 
@@ -124,6 +143,27 @@ def connection_flood():
                     pass
 
 
+def batch_success_burst():
+    """Every 30s emits 300 successful queries at once — creates high-volume low-error intervals.
+    This is what makes as_rate diverge from as_count: as_rate weights each interval equally,
+    so the low-volume high-error intervals inflate the average. as_count weights by volume,
+    so the burst of successes dominates the denominator."""
+    while True:
+        time.sleep(30)
+        statsd_count("pg_app.queries.total", 300)
+
+
+def api_call_errors():
+    """Simulates an external API with ~40% error rate — creates low-volume high-error intervals.
+    Combined with batch_success_burst, this produces the temporal variance needed to show
+    the difference between as_rate and as_count evaluation paths."""
+    while True:
+        statsd_count("pg_app.queries.total")
+        if random.random() < 0.40:
+            statsd_count("pg_app.queries.errors")
+        time.sleep(random.uniform(1, 3))
+
+
 if __name__ == "__main__":
     print("Starting database load generator...")
     time.sleep(15)
@@ -137,6 +177,8 @@ if __name__ == "__main__":
         threading.Thread(target=lock_contention, daemon=True, name="lock-contention-1"),
         threading.Thread(target=lock_contention, daemon=True, name="lock-contention-2"),
         threading.Thread(target=connection_flood, daemon=True, name="connection-flood"),
+        threading.Thread(target=batch_success_burst, daemon=True, name="batch-success-burst"),
+        threading.Thread(target=api_call_errors, daemon=True, name="api-call-errors"),
     ]
 
     for t in threads:

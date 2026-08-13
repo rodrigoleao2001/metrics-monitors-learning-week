@@ -11,6 +11,7 @@ instances:
     collect_resources:
       enabled: true
     collect_database_size_metrics: true
+    collect_default_database: true
     collect_wal_metrics: true
     data_directory: /var/lib/postgresql/data
     query_metrics:

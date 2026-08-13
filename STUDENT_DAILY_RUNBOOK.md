@@ -25,6 +25,7 @@ This Learning Week is designed as troubleshooting practice, not as a query-copyi
 - Use `check_dayX` to validate the environment, not to validate the answer.
 - Keep an evidence log for every mission: symptom, query tested, hypothesis, rejected alternative, chosen fix, and trade-off.
 - Use the `LAB.md` files as the source of truth for each day.
+- Day 1 also ships `day1-apm/SCENARIO_KB.md` as an optional pre-read, and `LAB.md` stays the source of truth.
 - Ask for a facilitator hint only after 15 minutes or after documenting one failed hypothesis.
 - For every monitor change, be ready to explain why it catches the real issue without adding unnecessary noise.
 

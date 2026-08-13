@@ -28,6 +28,9 @@ PAYMENT_METHODS = ["pix", "credit_card", "boleto", "debit_card"]
 CATEGORIES = ["electronics", "clothing", "food", "books", "home"]
 DEVICES = ["mobile", "desktop", "tablet"]
 
+RESOLUTION_BURST_INTERVAL = 10.0
+_resolution_last_burst = {}
+
 
 def weighted_region():
     r = random.random()
@@ -37,6 +40,19 @@ def weighted_region():
         if r <= cumulative:
             return region
     return "sp"
+
+
+def resolution_burst_due(name):
+    """
+    Returns True at most once every RESOLUTION_BURST_INTERVAL seconds per name.
+    Returns False on every call in between.
+    """
+    now = time.monotonic()
+    last = _resolution_last_burst.get(name)
+    if last is not None and now - last < RESOLUTION_BURST_INTERVAL:
+        return False
+    _resolution_last_burst[name] = now
+    return True
 
 
 def emit_orders():
@@ -118,6 +134,9 @@ def emit_resolution_demo():
     Sends the same value using different DogStatsD submission types.
     Investigate the resulting metric series in Metrics Explorer.
     """
+    if not resolution_burst_due("resolution"):
+        return
+
     tags = ["env:learning-week", "day:5", "demo:resolution"]
 
     for _ in range(random.randint(3, 6)):
@@ -129,8 +148,10 @@ def emit_resolution_demo():
 def emit_resolution_varied():
     """
     Sends varied values using different DogStatsD submission types.
-    Investigate how each metric appears after the Agent flush interval.
     """
+    if not resolution_burst_due("resolution-varied"):
+        return
+
     tags = ["env:learning-week", "day:5", "demo:resolution-varied"]
     values = [10, 50, 200, 500]
 

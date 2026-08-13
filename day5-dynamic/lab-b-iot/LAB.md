@@ -83,6 +83,35 @@ Before changing any monitor, deliver:
 - why you chose one fix
 - the final customer explanation
 
+## Mission 1 - Field Zone Temperature: Sensor Check
+
+This mission is a direct technical exercise, not a customer role card.
+
+The field zone monitor looks fine most of the time, but the operators keep reporting a problem in that zone that it never catches.
+
+Starting points:
+
+1. Open `[Day5-B] Field Zone Temperature - Sensor Check`.
+2. Read the query and write down exactly which sensors it covers and what it does with their readings.
+3. Plot `iot.sensor.temperature{zone:field}` in Metrics Explorer and break it down until you can see the sensors apart from each other.
+4. Decide what the number the monitor evaluates is not telling you about that zone.
+
+Before changing the monitor, deliver:
+
+- the current monitor flaw in one sentence
+- one rejected alternative hypothesis
+- two possible fixes and the trade-off between them
+- the evidence that made you choose the final fix
+- a customer-ready explanation
+
+Stretch challenge:
+
+- Propose a design that still gives the operators one zone-level view without letting any single source disappear inside it.
+
+Expert defense:
+
+- Explain how you would tell a genuinely hot sensor apart from a sensor sending invalid readings.
+
 ## Extra Investigation - Outliers
 
 Use this reasoning if one sensor looks different from its peers:

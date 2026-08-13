@@ -58,7 +58,7 @@ Learn how metric type, statistic choice, rollup, and tag segmentation can hide o
 
 ## Scenario
 
-You support `flask-store`, an online store with several endpoints. Some users are unhappy, but several monitors look green. Four monitors were intentionally created with realistic mistakes.
+You support `flask-store`, an online store with several endpoints. Some users are unhappy, but several monitors look green. The lab monitors were intentionally created with realistic mistakes.
 
 ## Setup
 
@@ -215,6 +215,103 @@ Stretch challenge:
 Expert defense:
 
 - Explain what you would change for Black Friday or another planned traffic shift.
+
+---
+
+## Mission 5 - Checkout Errors: Alert Volume Check
+
+The monitor is supposed to catch checkout errors, but it creates a new alert group for almost every single failure.
+
+Starting points:
+
+1. Open `[Day1] Checkout Errors - Alert Volume Check`.
+2. Inspect which dimension the query groups by.
+3. Estimate how many distinct values that dimension can take.
+4. Decide which dimension actually maps to someone who can act on the alert.
+
+Discussion questions:
+
+- What makes a good group-by dimension versus a bad one?
+- What happens to alert volume as the number of distinct values in the group-by dimension grows?
+- Which dimension would let one person own the fix for this failure?
+
+Before changing the monitor, deliver:
+
+- the current monitor flaw in one sentence
+- one rejected alternative hypothesis
+- two possible fixes and the trade-off between them
+- the evidence that made you choose the final fix
+- a customer-ready explanation
+
+Stretch challenge:
+
+- Propose a design that still lets you drill into a specific session without paging on every one of them.
+
+Expert defense:
+
+- Explain how this same mistake could show up on a custom metric tagged by user ID, order ID, or request ID.
+
+---
+
+## Mission 6 - Composite Monitor: Both Bad at the Same Time
+
+The on-call team receives separate alerts for latency and for errors, but neither one alone proves an incident. High latency during a batch job is expected. Errors during a deploy are expected. Both at the same time means real user impact.
+
+Starting points:
+
+1. Plot `trace.flask.request` p95 for the checkout endpoint over the last hour.
+2. Plot `trace.flask.request.errors` rate for the same endpoint over the same window.
+3. Find a period where both are elevated simultaneously and a period where only one is.
+4. Decide whether a single metric can represent both conditions, or whether you need a composite.
+
+Before building the monitor, deliver:
+
+- why a composite is needed instead of just lowering the latency threshold
+- one scenario where a composite would produce a false negative
+- the exact trigger conditions for each constituent monitor (what threshold, what window, what group-by)
+- a customer-ready explanation of what "both bad at the same time" means operationally
+
+Stretch challenge:
+
+- Identify a third condition (throughput drop) that would make this composite more precise. Explain when adding a third leg hurts more than it helps.
+
+Expert defense:
+
+- Explain how a composite monitor behaves when one constituent is in no-data state. Show where this is configured and what the operational risk is.
+
+---
+
+## Mission 7 - SLO and Burn Rate: When Is the Budget Gone?
+
+A checkout SLO is set at 99% availability over a 30-day rolling window. The SLO is green right now. The burn rate is not.
+
+Starting points:
+
+1. Create a request-based SLO using `trace.flask.request.hits` as the total and `trace.flask.request.errors` as bad events for the checkout endpoint.
+2. Set the target at 99% over 30 days.
+3. Open the burn rate alert options and inspect the fast-burn and slow-burn windows.
+4. Find the burn rate value at which the 30-day error budget is consumed in 1 hour.
+
+Before setting the burn rate alert, deliver:
+
+- what an error budget of 1% over 30 days means in minutes of downtime per month
+- the burn rate threshold that signals the budget will be gone in under 1 hour
+- the burn rate threshold that signals the budget will be gone in under 24 hours
+- one scenario where burn rate alerts earlier than a simple error-rate threshold, and one where it does not
+
+Stretch challenge:
+
+- Compare a request-based SLO with a monitor-based SLO for the same checkout service. Explain which one is more accurate and when the two would give different results.
+
+Expert defense:
+
+- Explain what happens to the burn rate calculation when traffic drops to zero. Is the SLO safe? How would you prevent a false-safe reading?
+
+---
+
+## Facilitator demo - monitor evaluation concepts
+
+`[Day1] DEMO - Monitor Evaluation Concepts` is not a mission and there is nothing in it for you to diagnose. The facilitator uses it live during the session to demonstrate Evaluation Window, Require Full Window, and New Group Delay.
 
 ## Bonus Challenges
 

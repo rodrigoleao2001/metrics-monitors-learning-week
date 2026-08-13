@@ -1,0 +1,72 @@
+# HPA for cpu-stress — saturates quickly because cpu-stress always exceeds 10% CPU target.
+# minReplicas:1, maxReplicas:2. The monitor for Mission 7 checks current replicas against a
+# static threshold instead of comparing desired vs max, so it never catches saturation.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cpu-stress-hpa
+  namespace: default
+  labels:
+    team: data-pipeline
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cpu-stress
+  minReplicas: 1
+  maxReplicas: 2
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 10
+---
+# rollout-stall: pods are always Running but never Ready because the readiness probe
+# checks a path that nginx never serves with 2xx. kubernetes_state shows
+# replicas_updated=N but replicas_available=0, proving the rollout is stalled.
+# The broken monitor (Mission 9) watches total running pods, which looks fine.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rollout-stall
+  namespace: default
+  labels:
+    app: rollout-stall
+    team: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: rollout-stall
+  template:
+    metadata:
+      labels:
+        app: rollout-stall
+        team: backend
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "20m"
+              memory: "32Mi"
+            limits:
+              cpu: "50m"
+              memory: "64Mi"
+          readinessProbe:
+            httpGet:
+              path: /not-ready
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 2

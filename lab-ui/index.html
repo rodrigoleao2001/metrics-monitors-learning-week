@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitors and Metrics Learning Week</title>
+<style>
+  /* ---- tokens --------------------------------------------------------
+     Light is the base. Dark is a deliberate second set of steps, not an
+     inversion of the first, and it is declared twice on purpose: once under
+     the OS preference and once under the explicit toggle, so a stamped
+     data-theme wins in both directions.
+
+     The status palette is fixed and never themed, which is why it lives
+     outside both blocks. It is only ever used on icons and thin borders,
+     never on body text, because warning against a light surface is far
+     too pale to read. */
+  :root {
+    /* status palette, fixed in both modes. Icon plus label always, never
+       colour on its own. */
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --serious:  #ec835a;
+    --critical: #d03b3b;
+
+    /* The log console keeps its own dark surface in both modes so the
+       coloured output lines stay legible. */
+    --console-bg:     #0e0e0d;
+    --console-fg:     #c3c2b7;
+    --console-border: #2c2c2a;
+
+    --radius:    10px;
+    --radius-sm: 6px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+
+  /* light */
+  :root {
+    color-scheme: light;
+
+    --bg:            #f4f4f2;
+    --surface-1:     #fcfcfb;
+    --surface-2:     #f0f0ec;
+    --surface-3:     #e6e6e1;
+    --border:        #dedcd6;
+    --border-strong: #c7c5bd;
+
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    /* #77756e read nicely but measured 4.19 on the page surface, under the 4.5
+       floor, and this token carries the section and field labels. */
+    --text-muted:     #6c6a63;
+
+    --brand:          #632ca6;
+    --brand-hover:    #52238a;
+    --brand-ink:      #5a2799;
+    --brand-soft:     rgba(99, 44, 166, .09);
+    --brand-edge:     rgba(99, 44, 166, .22);
+
+    --neutral:        #8d8b84;
+    --critical-hover: #a82a2a;
+    --card-shadow:    0 1px 2px rgba(11,11,11,.05);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --bg:            #131312;
+    --surface-1:     #1a1a19;
+    --surface-2:     #232322;
+    --surface-3:     #2c2c2a;
+    --border:        #343431;
+    --border-strong: #45453f;
+
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #8a8980;
+
+    --brand:          #632ca6;
+    --brand-hover:    #7539bd;
+    --brand-ink:      #a97ee0;
+    --brand-soft:     rgba(99, 44, 166, .16);
+    --brand-edge:     rgba(169, 126, 224, .28);
+
+    --neutral:        #6c6c66;
+    --critical-hover: #ea6a6a;
+    --card-shadow:    none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+
+      --bg:            #131312;
+      --surface-1:     #1a1a19;
+      --surface-2:     #232322;
+      --surface-3:     #2c2c2a;
+      --border:        #343431;
+      --border-strong: #45453f;
+
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #8a8980;
+
+      --brand:          #632ca6;
+      --brand-hover:    #7539bd;
+      --brand-ink:      #a97ee0;
+      --brand-soft:     rgba(99, 44, 166, .16);
+      --brand-edge:     rgba(169, 126, 224, .28);
+
+      --neutral:        #6c6c66;
+      --critical-hover: #ea6a6a;
+      --card-shadow:    none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font: 14px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  /* ---- header -------------------------------------------------------- */
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 18px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  /* The official mark already includes its own purple tile, so it sits on the
+     page unadorned rather than inside a second coloured square. */
+  .logo { width: 38px; height: 38px; flex: none; display: grid; place-items: center; }
+  .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+  .sub { color: var(--text-muted); font-size: 12px; font-family: var(--mono); margin-top: 2px; }
+  .head-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .link-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: inherit; font-size: 12.5px; color: var(--text-secondary);
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 7px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .link-btn:hover:not(:disabled) { background: var(--surface-3); color: var(--text-primary); }
+  .link-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ---- section label ------------------------------------------------- */
+  .section-label {
+    font-size: 11px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--text-muted); margin: 0 0 10px;
+  }
+
+  /* ---- preflight ----------------------------------------------------- */
+  .panel {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 22px;
+  }
+  .panel.alarm { border-color: rgba(208,59,59,.5); background: rgba(208,59,59,.06); }
+
+  .pf-head { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+  .pf-head h2 { margin: 0; font-size: 13.5px; font-weight: 600; }
+  .pf-head .caret { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+  .pf-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 7px; }
+  .pf-list[hidden] { display: none; }
+  .pf-list li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+  .pf-list .k { color: var(--text-secondary); }
+  .pf-list .v { color: var(--text-muted); font-size: 12px; font-family: var(--mono); }
+  .fix {
+    margin: 12px 0 0; padding: 11px 13px; border-radius: var(--radius-sm);
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 12.5px; color: var(--text-secondary);
+  }
+  .fix code {
+    font-family: var(--mono); font-size: 12px; color: var(--brand-ink);
+    background: var(--brand-soft); padding: 1px 5px; border-radius: 4px;
+  }
+  .fix b { color: var(--text-primary); font-weight: 600; }
+
+  /* ---- credentials form ---------------------------------------------- */
+  .cred-note { font-size: 12.5px; color: var(--text-secondary); margin: 12px 0 14px; max-width: 720px; }
+  .cred-note code {
+    font-family: var(--mono); font-size: 12px; color: var(--brand-ink);
+    background: var(--brand-soft); padding: 1px 5px; border-radius: 4px;
+  }
+  .cred-grid { display: grid; gap: 13px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 720px) { .cred-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field > label {
+    font-size: 11.5px; font-weight: 620; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .field .row { display: flex; gap: 6px; }
+  .field input, .field select {
+    flex: 1; min-width: 0; font: inherit; font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    color: var(--text-primary); border-radius: var(--radius-sm); padding: 9px 11px;
+  }
+  .field input { font-family: var(--mono); letter-spacing: .02em; }
+  .field input::placeholder { color: var(--text-muted); letter-spacing: 0; font-family: var(--sans); }
+  .field input:focus, .field select:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .field .help { font-size: 11.5px; color: var(--text-muted); }
+  .field .help a { color: var(--brand-ink); }
+  .peek {
+    font: inherit; font-size: 11.5px; flex: none; width: 46px; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    color: var(--text-secondary); border-radius: var(--radius-sm);
+  }
+  .peek:hover { background: var(--surface-3); color: var(--text-primary); }
+  .cred-actions {
+    display: flex; gap: 8px; align-items: center; margin-top: 15px; flex-wrap: wrap;
+  }
+  .cred-result { font-size: 12.5px; display: flex; gap: 7px; align-items: flex-start; }
+  .cred-result .lines > div { margin-bottom: 3px; }
+
+  /* ---- status glyph + pill (icon + label, never colour alone) -------- */
+  .glyph { width: 14px; height: 14px; flex: none; display: block; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+    padding: 4px 9px 4px 7px; border-radius: 100px;
+    border: 1px solid var(--border-strong); background: var(--surface-2);
+    color: var(--text-secondary); white-space: nowrap;
+  }
+  .pill .glyph { width: 12px; height: 12px; }
+  .pill > span { color: var(--text-primary); }
+
+  .s-good     { color: var(--good); }
+  .s-warning  { color: var(--warning); }
+  .s-serious  { color: var(--serious); }
+  .s-critical { color: var(--critical); }
+  .s-neutral  { color: var(--neutral); }
+
+  .pill.s-good     { border-color: rgba(12,163,12,.45);  background: rgba(12,163,12,.10);  }
+  .pill.s-warning  { border-color: rgba(250,178,25,.45); background: rgba(250,178,25,.10); }
+  .pill.s-critical { border-color: rgba(208,59,59,.45);  background: rgba(208,59,59,.10);  }
+
+  /* ---- day grid ------------------------------------------------------ */
+  .grid {
+    display: grid; gap: 14px; margin-bottom: 26px;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 15px 16px 14px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: var(--card-shadow);
+    transition: border-color .15s, transform .15s;
+  }
+  .card.is-up     { border-color: rgba(12,163,12,.42); }
+  .card.is-busy   { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand-soft); }
+
+  /* The title is a single line now, so centre it against the day badge. */
+  .card-top { display: flex; align-items: center; gap: 11px; }
+  .daynum {
+    width: 32px; height: 32px; flex: none; border-radius: 8px;
+    background: var(--brand-soft); border: 1px solid var(--brand-edge);
+    color: var(--brand-ink); font-weight: 700; font-size: 14px;
+    display: grid; place-items: center;
+  }
+  .card-title { font-size: 14.5px; font-weight: 640; letter-spacing: -.005em; }
+  .card-top .pill { margin-left: auto; }
+
+  .card-actions { display: flex; gap: 7px; margin-top: auto; flex-wrap: wrap; }
+
+  button.act {
+    font: inherit; font-size: 12.5px; font-weight: 560;
+    border-radius: var(--radius-sm); padding: 7px 13px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface-2);
+    color: var(--text-secondary); transition: background .12s, color .12s;
+  }
+  button.act:hover:not(:disabled) { background: var(--surface-3); color: var(--text-primary); }
+  button.act.primary {
+    background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 620;
+  }
+  button.act.primary:hover:not(:disabled) { background: var(--brand-hover); border-color: var(--brand-hover); }
+  button.act.danger { color: var(--critical); border-color: rgba(208,59,59,.42); }
+  button.act.danger:hover:not(:disabled) { background: rgba(208,59,59,.12); color: var(--critical-hover); }
+  button.act:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ---- job / progress ------------------------------------------------ */
+  #job { margin-bottom: 26px; }
+  #job[hidden] { display: none; }
+  .job-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .job-title { font-size: 13.5px; font-weight: 620; }
+  .job-meta { font-size: 12px; font-family: var(--mono); color: var(--text-muted); }
+  .job-head .spacer { margin-left: auto; }
+
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar {
+    flex: 1; height: 8px; border-radius: 100px; overflow: hidden;
+    background: var(--surface-3);
+  }
+  .bar > i {
+    display: block; height: 100%; width: 0%; border-radius: 100px;
+    background: linear-gradient(90deg, var(--brand) 0%, #9b5de0 100%);
+    transition: width .35s cubic-bezier(.4,0,.2,1);
+  }
+  .bar.done > i  { background: var(--good); }
+  .bar.fail > i  { background: var(--critical); }
+  .bar-pct {
+    font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
+    color: var(--text-secondary); min-width: 42px; text-align: right;
+  }
+  .step-line { margin-top: 9px; font-size: 12.5px; color: var(--text-secondary); min-height: 19px; }
+  .step-line .n { font-family: var(--mono); color: var(--brand-ink); }
+
+  .console {
+    margin-top: 13px; height: 260px; overflow-y: auto;
+    background: var(--console-bg); border: 1px solid var(--console-border);
+    border-radius: var(--radius-sm); padding: 11px 13px;
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.65;
+    color: var(--console-fg); white-space: pre-wrap; word-break: break-word;
+  }
+  .console .step { color: var(--brand-ink); font-weight: 600; }
+  .console .ok   { color: var(--good); }
+  .console .err  { color: var(--critical); }
+  .console .warn { color: var(--warning); }
+  .console:empty::after { content: "waiting for output"; color: var(--text-muted); }
+
+  /* ---- danger zone --------------------------------------------------- */
+  .danger-zone {
+    border: 1px solid rgba(208,59,59,.3); background: rgba(208,59,59,.05);
+    border-radius: var(--radius); padding: 15px 16px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .danger-zone .t { font-size: 13.5px; font-weight: 620; }
+  .danger-zone .d { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; max-width: 620px; }
+  .danger-zone button { margin-left: auto; }
+
+  /* ---- modal --------------------------------------------------------- */
+  .backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.66);
+    display: grid; place-items: center; padding: 20px; z-index: 50;
+    backdrop-filter: blur(2px);
+  }
+  .backdrop[hidden] { display: none; }
+  .modal {
+    width: 100%; max-width: 470px; background: var(--surface-1);
+    border: 1px solid var(--border-strong); border-radius: 12px; padding: 20px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5);
+  }
+  .modal h3 { margin: 0 0 9px; font-size: 15.5px; }
+  .modal p { margin: 0 0 8px; font-size: 13px; color: var(--text-secondary); }
+  .modal ul { margin: 0 0 14px; padding-left: 19px; font-size: 13px; color: var(--text-secondary); }
+  .modal input {
+    width: 100%; font: inherit; font-family: var(--mono); font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    color: var(--text-primary); border-radius: var(--radius-sm);
+    padding: 9px 11px; margin-bottom: 14px;
+  }
+  .modal input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .modal-actions { display: flex; gap: 9px; justify-content: flex-end; }
+
+  /* failure explanation */
+  .modal.wide { max-width: 620px; }
+  .err-head { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .err-head h3 { margin: 0; }
+  .err-head .glyph { width: 19px; height: 19px; }
+  .err-label {
+    font-size: 11px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--text-muted); margin: 16px 0 7px !important;
+  }
+  #err-steps {
+    margin: 0 0 16px; padding-left: 20px; font-size: 13px;
+    color: var(--text-secondary); display: grid; gap: 6px;
+  }
+  #err-steps li::marker { color: var(--brand-ink); font-weight: 700; }
+  #err-details { margin-bottom: 16px; }
+  #err-details summary {
+    cursor: pointer; font-size: 12.5px; color: var(--text-muted);
+    padding: 6px 0; user-select: none;
+  }
+  #err-details summary:hover { color: var(--text-secondary); }
+  #err-details[hidden] { display: none; }
+  #err-tail {
+    margin: 8px 0 0; max-height: 200px; overflow: auto;
+    background: var(--console-bg); border: 1px solid var(--console-border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px; font-family: var(--mono); font-size: 11.5px; line-height: 1.6;
+    color: var(--console-fg); white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* ---- toast --------------------------------------------------------- */
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(14px);
+    background: var(--surface-3); border: 1px solid var(--border-strong);
+    color: var(--text-primary); padding: 11px 16px; border-radius: 8px;
+    font-size: 13px; max-width: 620px; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60;
+    display: flex; gap: 9px; align-items: flex-start;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.bad { border-color: rgba(208,59,59,.5); }
+
+  .spin { animation: spin 1s linear infinite; transform-origin: 50% 50%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+  // Stamp a saved preference before the first paint, otherwise the page shows
+  // the OS theme for a frame and then jumps. With nothing saved, no attribute
+  // is set and the media query decides.
+  (function () {
+    try {
+      var t = localStorage.getItem('lw-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { /* private browsing, fall back to the OS preference */ }
+  })();
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">
+      <img id="dd-mark" alt="Datadog" src="data:image/png;base64,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">
+    </div>
+    <div>
+      <h1>Monitors and Metrics Learning Week</h1>
+      <div class="sub" id="repo-path">loading</div>
+    </div>
+    <div class="head-right">
+      <button class="link-btn" id="btn-theme" type="button"></button>
+      <button class="link-btn" id="btn-refresh">Refresh</button>
+    </div>
+  </header>
+
+  <!-- credentials -->
+  <section class="panel" id="cred-panel">
+    <div class="pf-head" id="cred-toggle" role="button" tabindex="0" aria-expanded="false">
+      <span id="cred-glyph"></span>
+      <h2 id="cred-summary">Datadog credentials</h2>
+      <span class="caret" id="cred-caret">show</span>
+    </div>
+
+    <div id="cred-body" hidden>
+      <p class="cred-note">
+        The labs send metrics and create monitors in your own Datadog account, so they need
+        an API key and an application key. What you type here is written to
+        <code>.env</code> at the root of this folder, which git already ignores. It stays on
+        this machine and is only ever sent to Datadog.
+      </p>
+
+      <div class="cred-grid">
+        <div class="field">
+          <label for="in-api">API key</label>
+          <div class="row">
+            <input id="in-api" type="password" autocomplete="off" spellcheck="false"
+                   placeholder="API Key">
+            <button class="peek" data-peek="in-api" type="button">Show</button>
+          </div>
+          <span class="help">Organization Settings, then API Keys. 32 characters.</span>
+        </div>
+
+        <div class="field">
+          <label for="in-app">Application key</label>
+          <div class="row">
+            <input id="in-app" type="password" autocomplete="off" spellcheck="false"
+                   placeholder="App Key">
+            <button class="peek" data-peek="in-app" type="button">Show</button>
+          </div>
+          <span class="help">Organization Settings, then Application Keys. 40 characters,
+            and it needs to read and write monitors.</span>
+        </div>
+
+        <div class="field">
+          <label for="in-site">Datadog site</label>
+          <div class="row"><select id="in-site"></select></div>
+          <span class="help">Match the address you use to log in. A key only works on the
+            org that issued it.</span>
+        </div>
+      </div>
+
+      <div class="cred-actions">
+        <button class="act primary" id="btn-save-cred">Save</button>
+        <button class="act" id="btn-test-cred">Test connection</button>
+        <span id="cred-result"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- preflight -->
+  <section class="panel" id="pf-panel">
+    <div class="pf-head" id="pf-toggle" role="button" tabindex="0" aria-expanded="false">
+      <span id="pf-glyph"></span>
+      <h2 id="pf-summary">Checking your machine</h2>
+      <span class="caret" id="pf-caret">show</span>
+    </div>
+    <ul class="pf-list" id="pf-list" hidden></ul>
+    <div id="pf-fix"></div>
+  </section>
+
+  <!-- days -->
+  <p class="section-label">Labs</p>
+  <div class="grid" id="grid"></div>
+
+  <!-- active job -->
+  <section id="job" hidden>
+    <p class="section-label">Progress</p>
+    <div class="panel">
+      <div class="job-head">
+        <span id="job-glyph"></span>
+        <span class="job-title" id="job-title"></span>
+        <span class="spacer"></span>
+        <span class="job-meta" id="job-meta"></span>
+        <button class="link-btn" id="btn-cancel">Cancel</button>
+      </div>
+      <div class="bar-row">
+        <div class="bar" id="bar"><i></i></div>
+        <span class="bar-pct" id="bar-pct">0%</span>
+      </div>
+      <div class="step-line" id="step-line"></div>
+      <div class="console" id="console" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- danger zone -->
+  <p class="section-label">Danger zone</p>
+  <div class="danger-zone">
+    <div>
+      <div class="t">Destroy everything</div>
+      <div class="d">Stops every container, deletes the Kubernetes cluster and removes every
+        Learning Week monitor from your Datadog account. Use this when the week is over.</div>
+    </div>
+    <button class="act danger" id="btn-destroy">Destroy All</button>
+  </div>
+</div>
+
+<!-- confirm modal -->
+<div class="backdrop" id="modal-back" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h3 id="modal-title">Destroy everything?</h3>
+    <p>This cannot be undone. It will:</p>
+    <ul>
+      <li>stop and remove every lab container and its volumes</li>
+      <li>delete the <code>learning-week-k8s</code> cluster</li>
+      <li>delete every monitor tagged <code>learning-week</code> from your Datadog account</li>
+    </ul>
+    <p>Type <b>DESTROY</b> to confirm.</p>
+    <input id="modal-input" placeholder="DESTROY" autocomplete="off" spellcheck="false">
+    <div class="modal-actions">
+      <button class="act" id="modal-cancel">Cancel</button>
+      <button class="act danger" id="modal-go" disabled>Destroy All</button>
+    </div>
+  </div>
+</div>
+
+<!-- failure explanation -->
+<div class="backdrop" id="err-back" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="err-title">
+    <div class="err-head">
+      <span id="err-glyph"></span>
+      <h3 id="err-title">Something went wrong</h3>
+    </div>
+    <p id="err-explain"></p>
+    <p class="err-label" id="err-steps-label">What to do</p>
+    <ol id="err-steps"></ol>
+    <details id="err-details">
+      <summary>Show the last lines of output</summary>
+      <pre id="err-tail"></pre>
+    </details>
+    <div class="modal-actions">
+      <button class="act" id="err-close">Close</button>
+      <button class="act primary" id="err-retry">Try again</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ---- status vocabulary. Colour never travels without a glyph + label. ---- */
+const ICONS = {
+  good:     '<svg class="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.4"/><path d="M5.2 8.3l1.9 1.9 3.7-4"/></svg>',
+  warning:  '<svg class="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.9L14.6 13.6H1.4z"/><path d="M8 6v3.3"/><path d="M8 11.6h.01"/></svg>',
+  critical: '<svg class="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.4"/><path d="M10.1 5.9l-4.2 4.2M5.9 5.9l4.2 4.2"/></svg>',
+  neutral:  '<svg class="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" stroke-dasharray="2.6 2.4"/></svg>',
+  busy:     '<svg class="glyph spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 1.6a6.4 6.4 0 1 1-6.4 6.4" /></svg>',
+};
+
+const STATE_META = {
+  up:      { tone: 'good',     label: 'Running' },
+  partial: { tone: 'warning',  label: 'Partial' },
+  stopped: { tone: 'warning',  label: 'Stopped' },
+  down:    { tone: 'neutral',  label: 'Not created' },
+};
+
+function glyph(tone, cls) {
+  return `<span class="s-${tone} ${cls || ''}" style="display:flex">${ICONS[tone === 'busy' ? 'busy' : tone]}</span>`;
+}
+function pill(tone, label) {
+  return `<span class="pill s-${tone}">${ICONS[tone === 'busy' ? 'busy' : tone]}<span>${label}</span></span>`;
+}
+
+/* ---- helpers ---- */
+const $ = (id) => document.getElementById(id);
+
+/* ---- theme --------------------------------------------------------------
+   No saved choice means the OS decides, which is why the button reads the
+   resolved theme rather than the attribute. Once someone picks a side it is
+   remembered and stops following the OS. */
+const THEME_ICON = {
+  light: '<svg class="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M12.8 3.2l-1.1 1.1M4.3 11.7l-1.1 1.1"/></svg>',
+  dark:  '<svg class="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 9.9A5.9 5.9 0 0 1 6.1 2.6a5.9 5.9 0 1 0 7.3 7.3z"/></svg>',
+};
+const osDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+function resolvedTheme() {
+  const stamped = document.documentElement.getAttribute('data-theme');
+  if (stamped === 'light' || stamped === 'dark') return stamped;
+  return osDark.matches ? 'dark' : 'light';
+}
+
+function renderThemeButton() {
+  const next = resolvedTheme() === 'dark' ? 'light' : 'dark';
+  const label = next === 'light' ? 'Light' : 'Dark';
+  $('btn-theme').innerHTML = THEME_ICON[next] + `<span>${label}</span>`;
+  $('btn-theme').setAttribute('aria-label', `Switch to ${label.toLowerCase()} mode`);
+  $('btn-theme').title = `Switch to ${label.toLowerCase()} mode`;
+}
+
+$('btn-theme').addEventListener('click', () => {
+  const next = resolvedTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('lw-theme', next); } catch (e) { /* not persistable */ }
+  /* Reuse the header mark for the tab icon so the image is embedded only once. */
+(function () {
+  var link = document.createElement('link');
+  link.rel = 'icon';
+  link.type = 'image/png';
+  link.href = $('dd-mark').src;
+  document.head.appendChild(link);
+})();
+
+renderThemeButton();
+});
+
+// Follow the OS while no explicit choice has been made.
+osDark.addEventListener('change', () => {
+  if (!document.documentElement.getAttribute('data-theme')) renderThemeButton();
+});
+
+renderThemeButton();
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let toastTimer;
+function toast(msg, bad) {
+  const t = $('toast');
+  t.className = bad ? 'show bad' : 'show';
+  t.innerHTML = glyph(bad ? 'critical' : 'good') + `<span>${esc(msg)}</span>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, bad ? 7000 : 4000);
+}
+
+async function api(path, body) {
+  const opt = body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : {};
+  const r = await fetch(path, opt);
+  let data = {};
+  try { data = await r.json(); } catch (_) {}
+  return { ok: r.ok, status: r.status, data };
+}
+
+/* ---- credentials ---------------------------------------------------------
+   The panel is static markup so that a background state refresh can never
+   wipe out something half typed. Only the summary line, the saved hints and
+   the site list get rewritten. */
+let credOpen = false, siteBuilt = false;
+
+function setCredOpen(open) {
+  credOpen = open;
+  $('cred-body').hidden = !open;
+  $('cred-caret').textContent = open ? 'hide' : 'show';
+  $('cred-toggle').setAttribute('aria-expanded', String(open));
+}
+$('cred-toggle').addEventListener('click', () => setCredOpen(!credOpen));
+$('cred-toggle').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCredOpen(!credOpen); }
+});
+
+function renderCredentials(cs) {
+  const both = cs.api_key_set && cs.app_key_set;
+  $('cred-glyph').innerHTML = glyph(both ? 'good' : 'warning');
+  $('cred-summary').textContent = both
+    ? `Datadog credentials saved for ${cs.site}`
+    : 'Datadog credentials needed';
+
+  if (!siteBuilt) {
+    $('in-site').innerHTML = cs.sites
+      .map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    $('in-site').value = cs.site;
+    siteBuilt = true;
+    if (!both) setCredOpen(true);
+  }
+  // The boxes are never pre-filled and never hint at a stored value. Everyone
+  // brings their own pair of keys, so nothing here should look already set up.
+}
+
+['in-api', 'in-app'].forEach(id => {
+  $(id).addEventListener('input', () => { $('cred-result').innerHTML = ''; });
+});
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('.peek');
+  if (!b) return;
+  const input = $(b.dataset.peek);
+  const hidden = input.type === 'password';
+  input.type = hidden ? 'text' : 'password';
+  b.textContent = hidden ? 'Hide' : 'Show';
+});
+
+function credResult(tone, lines) {
+  $('cred-result').innerHTML =
+    `<span class="cred-result">${glyph(tone)}<span class="lines">` +
+    lines.map(l => `<div>${esc(l)}</div>`).join('') + `</span></span>`;
+}
+
+function credPayload() {
+  return {
+    api_key: $('in-api').value.trim(),
+    app_key: $('in-app').value.trim(),
+    site: $('in-site').value,
+  };
+}
+
+const VERDICT = {
+  valid: 'works', invalid: 'rejected by Datadog', missing: 'not provided',
+  no_permission: 'valid but cannot read monitors', unknown: 'could not be checked',
+};
+
+/* Render a verification result. `prefix` names what was actually tested, so a
+   result can never be mistaken for a verdict on an empty box. */
+function showVerification(d, prefix) {
+  const lines = [
+    `${prefix}API key: ${VERDICT[d.api_key] || d.api_key}`,
+    `${prefix}Application key: ${VERDICT[d.app_key] || d.app_key || 'not checked'}`,
+  ].concat(d.messages || []);
+  const good = d.api_key === 'valid' && d.app_key === 'valid';
+  const bad = d.api_key === 'invalid' || d.app_key === 'invalid';
+  credResult(good ? 'good' : bad ? 'critical' : 'warning', lines);
+  return good;
+}
+
+function clearKeyBoxes() {
+  $('in-api').value = ''; $('in-app').value = '';
+  ['in-api', 'in-app'].forEach(id => { $(id).type = 'password'; });
+  document.querySelectorAll('.peek').forEach(b => b.textContent = 'Show');
+}
+
+$('btn-save-cred').addEventListener('click', async () => {
+  const btn = $('btn-save-cred');
+  btn.disabled = true; credResult('busy', ['Saving, then checking with Datadog']);
+  const r = await api('/api/credentials', credPayload());
+  btn.disabled = false;
+  if (!r.ok) { credResult('critical', [r.data.error || 'Could not save.']); return; }
+
+  // The values are on disk now and do not need to stay in the page.
+  clearKeyBoxes();
+  const good = r.data.verification
+    ? showVerification(r.data.verification, 'Saved ')
+    : (credResult('good', ['Saved to .env.']), false);
+  toast(good ? `Saved, and both keys work on ${r.data.verification.site}.`
+             : 'Saved to .env. Read the result beside the buttons.');
+  pollState();
+});
+
+$('btn-test-cred').addEventListener('click', async () => {
+  const btn = $('btn-test-cred');
+  btn.disabled = true; credResult('busy', ['Asking Datadog']);
+  const r = await api('/api/credentials/test', credPayload());
+  btn.disabled = false;
+  if (!r.ok) { credResult('warning', [r.data.error || 'Could not run the check.']); return; }
+  if (showVerification(r.data, '')) {
+    toast(`Both keys work on ${r.data.site}. Press Save to store them.`);
+  }
+});
+
+/* ---- render: preflight ---- */
+let pfOpen = false;
+
+function renderPreflight(pf) {
+  const blocking = pf.checks.filter(c => !c.ok && !c.advisory);
+  const advisory = pf.checks.filter(c => !c.ok && c.advisory);
+
+  $('pf-panel').classList.toggle('alarm', blocking.length > 0);
+
+  let tone, text;
+  if (blocking.length) {
+    tone = 'critical';
+    text = blocking.length === 1
+      ? 'One thing needs fixing before you can start a lab'
+      : `${blocking.length} things need fixing before you can start a lab`;
+  } else if (advisory.length) {
+    tone = 'good';
+    text = 'Ready to start. Day 2 will install minikube the first time you run it';
+  } else {
+    tone = 'good';
+    text = 'Ready to start';
+  }
+  $('pf-glyph').innerHTML = glyph(tone);
+  $('pf-summary').textContent = text;
+
+  $('pf-list').innerHTML = pf.checks.map(c => {
+    const t = c.ok ? 'good' : (c.advisory ? 'warning' : 'critical');
+    return `<li>${glyph(t)}<span class="k">${esc(c.label)}</span>
+            <span class="v">${esc(c.detail)}</span></li>`;
+  }).join('');
+
+  // Actionable remedy, written for someone who just cloned the repo.
+  const need = new Set(blocking.map(c => c.id));
+  let fix = '';
+  if (need.has('docker-installed')) {
+    fix = `<b>Install Docker Desktop.</b> Download it from docker.com, open it once,
+           and wait until it reports <code>Engine running</code>. Then press Refresh.`;
+  } else if (need.has('docker-running')) {
+    fix = `<b>Start Docker Desktop.</b> Open the app and wait until it reports
+           <code>Engine running</code>. Then press Refresh.`;
+  } else if (need.has('credentials')) {
+    fix = `<b>Add your Datadog keys</b> in the credentials panel above, then press Save.
+           Test connection will confirm they work before you spend ten minutes on a setup run.`;
+  }
+  $('pf-fix').innerHTML = fix ? `<div class="fix">${fix}</div>` : '';
+
+  if (blocking.length && !pfOpen) setPfOpen(true);
+}
+
+function setPfOpen(open) {
+  pfOpen = open;
+  $('pf-list').hidden = !open;
+  $('pf-caret').textContent = open ? 'hide' : 'show';
+  $('pf-toggle').setAttribute('aria-expanded', String(open));
+}
+$('pf-toggle').addEventListener('click', () => setPfOpen(!pfOpen));
+$('pf-toggle').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPfOpen(!pfOpen); }
+});
+
+/* ---- render: day cards ---- */
+function renderDays(st) {
+  const busy = st.job && st.job.running;
+  const ready = st.preflight.ready;
+  const nums = Object.keys(st.days).map(Number).sort((a, b) => a - b);
+
+  $('grid').innerHTML = nums.map(n => {
+    const d = st.days[String(n)];
+    const meta = STATE_META[d.state] || STATE_META.down;
+    const thisBusy = busy && st.job.day === n;
+    const isUp = d.state === 'up' || d.state === 'partial';
+    const dis = (busy || !ready) ? 'disabled' : '';
+
+    // A day that was never started has nothing worth reporting, so it gets no
+    // badge at all. Only a state the participant may need to act on shows one.
+    const statusPill = thisBusy
+      ? pill('busy', st.job.action === 'setup' ? 'Starting' : 'Working')
+      : (d.state === 'down' ? '' : pill(meta.tone, meta.label));
+
+    return `
+      <article class="card ${isUp ? 'is-up' : ''} ${thisBusy ? 'is-busy' : ''}"
+               title="${esc(d.detail)}">
+        <div class="card-top">
+          <div class="daynum">${n}</div>
+          <div class="card-title">${esc(d.title)}</div>
+          ${statusPill}
+        </div>
+        <div class="card-actions">
+          <button class="act primary" data-action="setup" data-day="${n}" ${dis || (isUp ? 'disabled' : '')}>Start</button>
+          <button class="act" data-action="check" data-day="${n}" ${busy ? 'disabled' : ''}>Check</button>
+          <button class="act" data-action="stop" data-day="${n}" ${busy || !isUp ? 'disabled' : ''}>Stop</button>
+          <button class="act danger" data-action="cleanup" data-day="${n}" ${busy ? 'disabled' : ''}>Clean</button>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+/* ---- render: job ---- */
+const ACTION_VERB = { setup: 'Starting', stop: 'Stopping', check: 'Checking', cleanup: 'Cleaning up', destroy: 'Destroying' };
+
+function renderJob(job) {
+  const box = $('job');
+  if (!job) { box.hidden = true; return; }
+  box.hidden = false;
+
+  const what = job.day ? `Day ${job.day}` : 'everything';
+  const verb = ACTION_VERB[job.action] || job.action;
+  const failed = !job.running && job.returncode !== 0;
+  const done = !job.running && job.returncode === 0;
+
+  $('job-glyph').innerHTML = glyph(job.running ? 'busy' : (failed ? 'critical' : 'good'));
+  $('job-title').textContent = job.running
+    ? `${verb} ${what}`
+    : (failed ? `${verb} ${what} failed` : `${verb} ${what} finished`);
+
+  const mins = Math.floor(job.elapsed / 60), secs = job.elapsed % 60;
+  let meta = `${mins}m ${String(secs).padStart(2, '0')}s`;
+  if (failed) meta += `  exit ${job.returncode}`;
+  $('job-meta').textContent = meta;
+
+  const bar = $('bar');
+  bar.className = 'bar' + (done ? ' done' : failed ? ' fail' : '');
+  // On failure keep a sliver of red visible even at 0 percent, but report the
+  // real number beside it rather than rounding a failure up to complete.
+  bar.firstElementChild.style.width = (failed ? Math.max(job.percent, 8) : job.percent) + '%';
+  $('bar-pct').textContent = job.percent + '%';
+
+  if (job.total) {
+    $('step-line').innerHTML =
+      `<span class="n">step ${job.step} of ${job.total}</span>${lastStepTitle ? ' &nbsp;·&nbsp; ' + esc(lastStepTitle) : ''}`;
+  } else if (job.running) {
+    $('step-line').textContent = 'starting up';
+  } else {
+    $('step-line').textContent = failed
+      ? 'The script stopped before reporting any step. Read the output below.' : '';
+  }
+
+  $('btn-cancel').disabled = !job.running;
+  $('btn-cancel').textContent = job.running ? 'Cancel' : 'Dismiss';
+}
+
+/* ---- failure popup ------------------------------------------------------
+   A failed run raises the explanation itself rather than leaving someone to
+   read a wall of script output. Shown once per run, never on every poll. */
+let failureShownFor = null, lastFailedAction = null;
+
+function showFailure(job) {
+  const f = job.failure;
+  if (!f) return;
+  const key = `${job.action}:${job.day}:${job.bytes}`;
+  if (failureShownFor === key) return;
+  failureShownFor = key;
+  lastFailedAction = { action: job.action, day: job.day };
+
+  // A check that finds a lab stopped is answering the question, not failing.
+  // Interrupting the participant with a modal for that would be crying wolf.
+  if (f.soft) { toast(f.title + '. ' + f.explanation); return; }
+
+  const cancelled = f.title === 'Cancelled';
+  $('err-glyph').innerHTML = glyph(cancelled ? 'warning' : 'critical');
+  $('err-title').textContent = f.title;
+
+  const what = job.day ? `Day ${job.day}` : 'the cleanup';
+  const verb = (ACTION_VERB[job.action] || job.action).toLowerCase();
+  $('err-explain').textContent = `While ${verb} ${what}: ${f.explanation}`;
+
+  const steps = f.steps || [];
+  $('err-steps-label').hidden = steps.length === 0;
+  $('err-steps').innerHTML = steps.map(s => `<li>${esc(s)}</li>`).join('');
+
+  $('err-details').hidden = !f.tail;
+  $('err-details').open = false;
+  $('err-tail').textContent = f.tail || '';
+
+  $('err-retry').hidden = job.action === 'destroy';
+  $('err-back').hidden = false;
+  $('err-close').focus();
+}
+
+$('err-close').addEventListener('click', () => { $('err-back').hidden = true; });
+$('err-back').addEventListener('click', e => { if (e.target === $('err-back')) $('err-back').hidden = true; });
+$('err-retry').addEventListener('click', () => {
+  $('err-back').hidden = true;
+  if (lastFailedAction) run(lastFailedAction.action, lastFailedAction.day);
+});
+
+/* ---- console ---- */
+let logOffset = 0, lastStepTitle = '';
+const ANSI = /\x1b\[[0-9;?]*[A-Za-z]/g;
+
+function appendLog(chunk) {
+  if (!chunk) return;
+  const box = $('console');
+  const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+
+  chunk.replace(ANSI, '').split('\n').forEach((line, i, arr) => {
+    if (i === arr.length - 1 && line === '') return;
+    const m = line.match(/\[(\d+)\/(\d+)\]\s*(.*)$/);
+    let cls = '';
+    if (m) { cls = 'step'; lastStepTitle = m[3].trim(); }
+    else if (/^\s*[✓]|\bSUCCESS\b|\bComplete\b/i.test(line)) cls = 'ok';
+    else if (/\bERROR\b|\bFAILED\b|\bfatal\b|^\s*✗/i.test(line)) cls = 'err';
+    else if (/\bWARN/i.test(line)) cls = 'warn';
+
+    const el = document.createElement('span');
+    if (cls) el.className = cls;
+    el.textContent = line + '\n';
+    box.appendChild(el);
+  });
+
+  while (box.childNodes.length > 3000) box.removeChild(box.firstChild);
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+
+/* ---- polling ---- */
+let stateTimer = null, logTimer = null, currentJobKey = null;
+
+async function pollState() {
+  const r = await api('/api/state');
+  if (!r.ok) { toast('Lost contact with the local server. Is it still running in your terminal?', true); return; }
+  const st = r.data;
+  $('repo-path').textContent = st.root;
+  renderCredentials(st.credentials);
+  renderPreflight(st.preflight);
+  renderDays(st);
+
+  const key = st.job ? `${st.job.action}:${st.job.day}:${st.job.elapsed > 0}` : null;
+  if (st.job) {
+    const fresh = `${st.job.action}:${st.job.day}`;
+    if (fresh !== currentJobKey) {
+      currentJobKey = fresh; logOffset = 0; lastStepTitle = ''; $('console').textContent = '';
+    }
+    renderJob(st.job);
+    if (st.job.running) startLogPolling();
+    else if (st.job.returncode !== 0) showFailure(st.job);
+  } else {
+    renderJob(null);
+  }
+  scheduleState(st.job && st.job.running ? 3500 : 8000);
+}
+
+function scheduleState(ms) {
+  clearTimeout(stateTimer);
+  stateTimer = setTimeout(pollState, ms);
+}
+
+function startLogPolling() {
+  if (logTimer) return;
+  const tick = async () => {
+    const r = await api('/api/log?offset=' + logOffset);
+    if (r.ok && r.data.job) {
+      appendLog(r.data.chunk);
+      logOffset = r.data.offset;
+      renderJob(r.data.job);
+      if (!r.data.job.running) {
+        clearInterval(logTimer); logTimer = null;
+        pollState();
+        if (r.data.job.returncode === 0) {
+          toast(`${ACTION_VERB[r.data.job.action] || r.data.job.action} finished cleanly.`);
+        } else {
+          showFailure(r.data.job);
+        }
+        return;
+      }
+    }
+  };
+  logTimer = setInterval(tick, 900);
+  tick();
+}
+
+/* ---- actions ---- */
+async function run(action, day, force) {
+  const r = await api('/api/run', { action, day, force: !!force });
+  if (r.ok) {
+    logOffset = 0; lastStepTitle = ''; $('console').textContent = '';
+    currentJobKey = `${action}:${day}`;
+    failureShownFor = null;
+    renderJob(r.data.job);
+    $('job').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    startLogPolling();
+    scheduleState(1200);
+    return;
+  }
+  if (r.status === 409 && r.data.conflict_days) {
+    const list = r.data.conflict_days.map(d => 'Day ' + d).join(' and ');
+    if (confirm(`${list} is still running.\n\n${r.data.detail}\n\nStart Day ${day} anyway?`)) {
+      run(action, day, true);
+    }
+    return;
+  }
+  toast(r.data.detail || r.data.error || 'That did not work.', true);
+}
+
+$('grid').addEventListener('click', e => {
+  const b = e.target.closest('button[data-action]');
+  if (!b || b.disabled) return;
+  const action = b.dataset.action, day = Number(b.dataset.day);
+  if (action === 'cleanup' &&
+      !confirm(`Clean up Day ${day}?\n\nThis removes the containers, their volumes, and the Day ${day} monitors from your Datadog account.`)) {
+    return;
+  }
+  run(action, day);
+});
+
+$('btn-refresh').addEventListener('click', () => { $('btn-refresh').disabled = true; pollState().finally(() => $('btn-refresh').disabled = false); });
+
+$('btn-cancel').addEventListener('click', async () => {
+  if ($('btn-cancel').textContent === 'Dismiss') { renderJob(null); currentJobKey = null; return; }
+  const r = await api('/api/cancel', {});
+  toast(r.ok ? 'Asked the script to stop. Docker may take a moment to settle.'
+             : (r.data.error || 'Nothing to cancel.'), !r.ok);
+});
+
+/* destroy modal */
+$('btn-destroy').addEventListener('click', () => {
+  $('modal-input').value = ''; $('modal-go').disabled = true;
+  $('modal-back').hidden = false; $('modal-input').focus();
+});
+$('modal-input').addEventListener('input', e => {
+  $('modal-go').disabled = e.target.value.trim() !== 'DESTROY';
+});
+$('modal-cancel').addEventListener('click', () => { $('modal-back').hidden = true; });
+$('modal-back').addEventListener('click', e => { if (e.target === $('modal-back')) $('modal-back').hidden = true; });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { $('modal-back').hidden = true; $('err-back').hidden = true; }
+});
+$('modal-go').addEventListener('click', async () => {
+  $('modal-back').hidden = true;
+  const r = await api('/api/destroy', { confirm: 'DESTROY' });
+  if (r.ok) {
+    logOffset = 0; lastStepTitle = ''; $('console').textContent = '';
+    currentJobKey = 'destroy:0';
+    renderJob(r.data.job); startLogPolling(); scheduleState(1200);
+  } else {
+    toast(r.data.detail || r.data.error || 'Could not start.', true);
+  }
+});
+
+pollState();
+</script>
+</body>
+</html>

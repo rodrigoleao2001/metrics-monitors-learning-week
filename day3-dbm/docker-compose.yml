@@ -11,6 +11,7 @@ services:
       - DD_TAGS=env:learning-week day:3 spec:dbm
       - DD_HOSTNAME=learning-week-dbm
       - DD_LOG_LEVEL=info
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
@@ -21,6 +22,7 @@ services:
         condition: service_healthy
     networks:
       - day3-network
+    restart: unless-stopped
 
   postgres:
     image: postgres:15-alpine
@@ -43,6 +45,7 @@ services:
       retries: 10
     networks:
       - day3-network
+    restart: unless-stopped
 
   load-generator:
     build:
@@ -51,6 +54,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - day3-network
+    restart: unless-stopped
+
+  reconciliation-demo:
+    build:
+      context: ./reconciliation-demo
+    container_name: reconciliation-demo-day3
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+    depends_on:
+      - datadog-agent
     networks:
       - day3-network
     restart: unless-stopped

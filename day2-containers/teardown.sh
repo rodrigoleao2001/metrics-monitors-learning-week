@@ -6,6 +6,7 @@ CLUSTER_NAME="learning-week-k8s"
 echo "=== Day 2 — Teardown ==="
 
 echo "Deleting sample apps..."
+kubectl delete -f "$(dirname "$0")/k8s/missing-tag-app.yaml" --ignore-not-found 2>/dev/null || true
 kubectl delete -f "$(dirname "$0")/k8s/stress-app.yaml" --ignore-not-found 2>/dev/null || true
 kubectl delete -f "$(dirname "$0")/k8s/sample-app.yaml" --ignore-not-found 2>/dev/null || true
 

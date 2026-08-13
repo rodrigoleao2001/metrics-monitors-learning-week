@@ -18,6 +18,7 @@ services:
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     networks:
       - day1-network
+    restart: unless-stopped
 
   flask-app:
     build:
@@ -36,6 +37,7 @@ services:
       - datadog-agent
     networks:
       - day1-network
+    restart: unless-stopped
 
   traffic-generator:
     build:
@@ -45,6 +47,8 @@ services:
       - DD_AGENT_HOST=datadog-agent
     volumes:
       - ./metric_types_demo.py:/demo/metric_types_demo.py:ro
+      - ./monitor_concepts_demo.py:/demo/monitor_concepts_demo.py:ro
+      - ./checkout_errors_demo.py:/demo/checkout_errors_demo.py:ro
     depends_on:
       - flask-app
     networks:
@@ -65,6 +69,50 @@ services:
         sleep 15
         while true; do
           python -u /demo/metric_types_demo.py
+          sleep 60
+        done
+    depends_on:
+      - datadog-agent
+    networks:
+      - day1-network
+    restart: unless-stopped
+
+  monitor-concepts-demo:
+    build:
+      context: ./traffic-generator
+    container_name: monitor-concepts-demo-day1
+    environment:
+      - DD_AGENT_HOST=datadog-agent
+    volumes:
+      - ./monitor_concepts_demo.py:/demo/monitor_concepts_demo.py:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 15
+        while true; do
+          python -u /demo/monitor_concepts_demo.py
+          sleep 60
+        done
+    depends_on:
+      - datadog-agent
+    networks:
+      - day1-network
+    restart: unless-stopped
+
+  checkout-errors-demo:
+    build:
+      context: ./traffic-generator
+    container_name: checkout-errors-demo-day1
+    environment:
+      - DD_AGENT_HOST=datadog-agent
+    volumes:
+      - ./checkout_errors_demo.py:/demo/checkout_errors_demo.py:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 15
+        while true; do
+          python -u /demo/checkout_errors_demo.py
           sleep 60
         done
     depends_on:

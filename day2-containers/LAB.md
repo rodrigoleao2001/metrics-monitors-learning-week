@@ -48,7 +48,7 @@ Learn how space aggregation, cumulative counters, Kubernetes state metrics, eval
 
 ## Scenario
 
-You support a Kubernetes cluster with healthy workloads, stressed workloads, and broken workloads. Five monitors were intentionally created with realistic mistakes.
+You support a Kubernetes cluster with healthy workloads, stressed workloads, and broken workloads. Every monitor in this lab was intentionally created with a realistic mistake.
 
 ## Setup
 
@@ -68,13 +68,13 @@ Check:
 
 ---
 
-## Mission 1 - CPU Limits: Cluster Average
+## Mission 1 - CPU Limits: Fleet Overview
 
 The monitor uses a cluster average. Which workload is hidden?
 
 Starting points:
 
-1. Open `[Day2] K8s CPU Limits - Cluster Average`.
+1. Open `[Day2] K8s CPU Limits - Fleet Overview`.
 2. Plot the metric with and without `by {kube_deployment}`.
 3. Decide whether the current number points to an owner.
 
@@ -96,7 +96,7 @@ Expert defense:
 
 ---
 
-## Mission 2 - Pod Restart Alert: Cumulative Restarts
+## Mission 2 - Pod Restart Alert: Restart Tracking
 
 The monitor is stuck in alert. Would it recover if the pod stopped crashing?
 
@@ -124,7 +124,7 @@ Expert defense:
 
 ---
 
-## Mission 3 - Memory Limits: Watching Changes
+## Mission 3 - Memory Limits: Configuration Watch
 
 The monitor uses change logic on a mostly static configuration value.
 
@@ -152,7 +152,7 @@ Expert defense:
 
 ---
 
-## Mission 4 - Pod Count: Static Check
+## Mission 4 - Pod Count: Capacity Check
 
 The total pod count looks OK, but deployments may not be ready.
 
@@ -182,13 +182,13 @@ Expert defense:
 
 ## Mission 5 - CrashLoop Silent Monitor
 
-A broken pod should trigger a monitor, but the monitor stays quiet.
+A workload in this cluster restarts every few seconds and every restart is configured in a way this monitor is supposed to catch. The monitor has never notified anyone.
 
 Starting points:
 
-1. Inspect the monitor options.
-2. Check whether each alert group has data for the full evaluation window.
-3. Decide whether `require_full_window` helps or hides the issue.
+1. Confirm in `kubectl` that the workload really is restarting and really is configured the way the monitor expects.
+2. Plot the same metric the monitor uses, grouped the same way, and look at how long each series lasts.
+3. Compare what you see in the graph with what the monitor's own evaluation history shows.
 
 Before changing the monitor, deliver:
 
@@ -200,18 +200,130 @@ Before changing the monitor, deliver:
 
 Stretch challenge:
 
-- Design a safer monitor for sparse or short-lived pod series.
+- Design a safer monitor for a workload whose series are short lived.
 
 Expert defense:
 
 - Explain the difference between no data, incomplete window, and OK.
 
+---
+
+## Mission 6 - K8s CPU Usage: Workload Check
+
+One workload never gets its own alert group in a monitor grouped by deployment, and no alert ever names it, even though it is clearly running and consuming CPU.
+
+Starting points:
+
+1. Open `[Day2] K8s CPU Usage - Workload Check`.
+2. Run `kubectl get deployments`, `kubectl get replicasets`, and `kubectl get pods -o wide` and compare what each command shows.
+3. Check which owner object each pod actually belongs to.
+4. Decide whether every workload in this cluster is guaranteed to have a `kube_deployment` tag.
+
+Before changing the monitor, deliver:
+
+- the current monitor flaw in one sentence
+- one rejected alternative hypothesis
+- two possible fixes and the trade-off between them
+- the evidence that made you choose the final fix
+- a customer-ready explanation
+
+Stretch challenge:
+
+- Propose a monitor design that still catches this workload without assuming every workload is owned by a Deployment.
+
+Expert defense:
+
+- Explain what any monitor that groups by an owner dimension assumes about the workloads it is watching, and when that assumption fails.
+
+## Mission 7 - HPA Saturation: No More Headroom
+
+The horizontal pod autoscaler is scaling, but the monitor does not warn when the autoscaler has reached its ceiling and cannot add more replicas.
+
+Starting points:
+
+1. Run `kubectl get hpa -A` and note the current and maximum replica count for any HPA in the cluster.
+2. Find the Kubernetes state metric that exposes desired replicas and maximum allowed replicas for an HPA.
+3. Open `[Day2] K8s HPA - Saturation Watch` and inspect what it compares.
+4. Decide whether the monitor triggers early enough to allow action before the ceiling is reached.
+
+Before changing the monitor, deliver:
+
+- the current monitor flaw in one sentence
+- why reaching the HPA maximum is an actionable signal even if all pods are healthy
+- two possible threshold strategies and the trade-off between them
+- a customer-ready explanation of what "HPA ceiling" means without mentioning Kubernetes internals
+
+Stretch challenge:
+
+- Design a two-stage alert: warn when 80% of max replicas are in use, critical when desired equals max.
+
+Expert defense:
+
+- Explain what happens to this monitor during a cluster upgrade or node drain when pods are temporarily evicted and rescheduled. Would it produce false positives? How would you prevent it?
+
+---
+
+## Mission 8 - Node Scheduling Pressure: Pods Cannot Land
+
+All pods are running. New pods cannot be scheduled. The current monitors do not detect this.
+
+Starting points:
+
+1. Run `kubectl describe nodes` and inspect `Allocatable` vs `Requests` for CPU and memory.
+2. Find the Kubernetes metric that exposes allocatable CPU and the metric that exposes requested CPU by node.
+3. Compare these two values as a ratio and decide at what threshold new pods would be rejected.
+4. Open `[Day2] K8s Node CPU - Scheduling Pressure` and verify whether it actually catches the condition where the node is full but existing pods are not suffering.
+
+Before changing the monitor, deliver:
+
+- the difference between a pod suffering from CPU throttling and a node rejecting new pod placements
+- one rejected alternative metric you considered using and why it does not prove the scheduling gap
+- two monitor designs and the trade-off between detecting scheduling pressure early versus creating noise on bursty workloads
+- a customer-ready explanation of why the cluster looks healthy on the infrastructure page but new deployments are stuck pending
+
+Stretch challenge:
+
+- Propose a composite monitor that detects both scheduling pressure on nodes and pending pods simultaneously.
+
+Expert defense:
+
+- Explain how taints, tolerations, and node affinity rules would make this monitor unreliable for heterogeneous clusters. What assumption does any node-level resource monitor make about scheduling eligibility?
+
+---
+
+## Mission 9 - Deployment Rollout Stall: Available vs Updated
+
+A deployment was rolled out 20 minutes ago. The pod count looks correct. The rollout is silently stalled.
+
+Starting points:
+
+1. Run `kubectl rollout status deployment/<name>` for each deployment in the cluster.
+2. Compare `kubernetes_state.deployment.replicas_updated` with `kubernetes_state.deployment.replicas_available` for each deployment.
+3. Find a deployment where updated replicas and available replicas diverge.
+4. Open `[Day2] K8s Deployment - Rollout Stall` and check whether it compares updated vs available, or just checks total running pods.
+
+Before changing the monitor, deliver:
+
+- the current monitor flaw in one sentence
+- why a total pod count monitor misses a stalled rolling update
+- two possible signals that prove a rollout is stalled vs simply slow
+- a customer-ready explanation that explains the risk of a stalled rollout without mentioning kubectl
+
+Stretch challenge:
+
+- Design a monitor with a time-based condition: the rollout has been in progress for more than 10 minutes with no increase in updated replicas.
+
+Expert defense:
+
+- Explain how `maxSurge` and `maxUnavailable` in the deployment strategy affect what "stalled" means and how you would account for intentionally slow rollouts.
+
+---
+
 ## Bonus Challenges
 
 1. Create a node readiness monitor.
-2. Create an HPA saturation monitor and explain the owner.
-3. Create a composite monitor for restart burst plus memory pressure.
-4. Expert: write a runbook snippet for the first responder.
+2. Create a composite monitor for restart burst plus memory pressure.
+3. Expert: write a runbook snippet for the first responder.
 
 ## Cleanup
 

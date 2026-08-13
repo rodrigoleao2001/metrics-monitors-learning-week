@@ -20,6 +20,7 @@ services:
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     networks:
       - day4-network
+    restart: unless-stopped
 
   log-app:
     build:
@@ -45,6 +46,7 @@ services:
       - log-app
     networks:
       - day4-network
+    restart: unless-stopped
 
   nginx-traffic:
     image: curlimages/curl:latest

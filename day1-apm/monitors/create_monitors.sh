@@ -23,7 +23,7 @@ cat > "$P" <<'JSON'
   "type": "metric alert",
   "query": "avg(last_5m):avg:trace.flask.request{service:flask-store,env:learning-week} > 1",
   "message": "Average latency is above 1s.\n\nThis monitor looks healthy... but is it really?\n\n@slack-alerts",
-  "tags": ["learning-week:day1-apm", "difficulty:beginner"],
+  "tags": ["learning-week:day1-apm"],
   "options": {
     "thresholds": {"critical": 1, "warning": 0.5},
     "notify_no_data": false,
@@ -42,7 +42,7 @@ cat > "$P" <<'JSON'
   "type": "metric alert",
   "query": "avg(last_15m):p95:trace.flask.request{service:flask-store,env:learning-week}.rollup(avg, 600) > 2",
   "message": "P95 latency spike detected!\n\nBut wait... are we really catching spikes with this configuration?\n\n@slack-alerts",
-  "tags": ["learning-week:day1-apm", "difficulty:intermediate"],
+  "tags": ["learning-week:day1-apm"],
   "options": {
     "thresholds": {"critical": 2, "warning": 1.5},
     "notify_no_data": false,
@@ -61,7 +61,7 @@ cat > "$P" <<'JSON'
   "type": "metric alert",
   "query": "sum(last_10m):sum:trace.flask.request.errors{service:flask-store,env:learning-week}.as_count() > 100",
   "message": "High error count across the service!\n\nIs this the best way to detect which endpoint is failing?\n\n@slack-alerts",
-  "tags": ["learning-week:day1-apm", "difficulty:intermediate"],
+  "tags": ["learning-week:day1-apm"],
   "options": {
     "thresholds": {"critical": 100, "warning": 50},
     "notify_no_data": false,
@@ -79,14 +79,53 @@ cat > "$P" <<'JSON'
   "name": "[Day1] APM Throughput Alert",
   "type": "metric alert",
   "query": "sum(last_5m):sum:trace.flask.request.hits{service:flask-store,env:learning-week}.as_count() < 10",
-  "message": "Throughput dropped below threshold!\n\nIs a static threshold the right approach for traffic volume?\n\n@pagerduty-critical",
-  "tags": ["learning-week:day1-apm", "difficulty:advanced"],
+  "message": "Throughput dropped below threshold!\n\nWould you want to be paged for this, at this hour, for this reason?\n\n@pagerduty-critical",
+  "tags": ["learning-week:day1-apm"],
   "options": {
     "thresholds": {"critical": 10, "warning": 50},
     "notify_no_data": true,
     "no_data_timeframe": 5,
     "renotify_interval": 0,
     "evaluation_delay": 60
+  }
+}
+JSON
+create_monitor_from_file "$P"
+
+# Monitor 5
+P=$(new_payload)
+cat > "$P" <<'JSON'
+{
+  "name": "[Day1] DEMO - Monitor Evaluation Concepts",
+  "type": "metric alert",
+  "query": "avg(last_30m):avg:monitor_concepts_demo.request_duration{env:learning-week} by {sim_host} > 1",
+  "message": "Host {{sim_host.name}} latency check.\n\nUse this monitor to demo Evaluation Window, Require Full Window, and New Group Delay: a new sim_host joins every 30s throughout the demo run, so you can watch new groups sit in No Data/pending until the configured New Group Delay elapses.\n\n@slack-alerts",
+  "tags": ["learning-week:day1-apm"],
+  "options": {
+    "thresholds": {"critical": 1, "warning": 0.5},
+    "notify_no_data": false,
+    "renotify_interval": 0,
+    "evaluation_delay": 60,
+    "require_full_window": true,
+    "new_group_delay": 300
+  }
+}
+JSON
+create_monitor_from_file "$P"
+
+# Monitor 6
+P=$(new_payload)
+cat > "$P" <<'JSON'
+{
+  "name": "[Day1] Checkout Errors - Alert Volume Check",
+  "type": "metric alert",
+  "query": "sum(last_5m):sum:flask_store.checkout_errors{service:flask-store,env:learning-week} by {session_id}.as_count() > 0",
+  "message": "Checkout error detected for session {{session_id.name}}!\n\nHow many separate alert groups is this monitor producing right now, and does this notification tell the on call where the failure sits?\n\n@slack-alerts",
+  "tags": ["learning-week:day1-apm"],
+  "options": {
+    "thresholds": {"critical": 0},
+    "notify_no_data": false,
+    "renotify_interval": 0
   }
 }
 JSON

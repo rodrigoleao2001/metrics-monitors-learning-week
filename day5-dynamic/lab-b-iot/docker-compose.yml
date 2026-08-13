@@ -16,6 +16,7 @@ services:
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     networks:
       - day5b-network
+    restart: unless-stopped
 
   iot-app:
     build:

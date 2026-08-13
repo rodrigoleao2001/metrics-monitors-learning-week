@@ -68,6 +68,8 @@ echo ""
 echo "[5/5] Deploying sample applications..."
 kubectl apply -f "${SCRIPT_DIR}/k8s/sample-app.yaml"
 kubectl apply -f "${SCRIPT_DIR}/k8s/stress-app.yaml"
+kubectl apply -f "${SCRIPT_DIR}/k8s/missing-tag-app.yaml"
+kubectl apply -f "${SCRIPT_DIR}/k8s/advanced-app.yaml"
 
 echo "  Waiting for deployments to be ready..."
 kubectl wait --for=condition=available deployment/nginx-stable -n default --timeout=120s 2>/dev/null || true

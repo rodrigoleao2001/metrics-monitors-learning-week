@@ -1,0 +1,13 @@
+#!/bin/bash
+# Hands off to Terminal so the participant has a window to read and to stop.
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$HERE/../../.." && pwd)"
+
+if [ ! -f "$ROOT/lab-ui/server.py" ]; then
+  /usr/bin/osascript -e 'display alert "Learning Week" message "This app has to stay inside the Learning Week folder you cloned, next to the lab-ui folder. Move it back and try again." as critical'
+  exit 1
+fi
+
+chmod +x "$ROOT/start-ui.sh" "$ROOT/start-ui.command" 2>/dev/null || true
+exec /usr/bin/open -a Terminal "$ROOT/start-ui.command"

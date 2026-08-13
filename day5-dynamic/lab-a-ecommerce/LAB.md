@@ -79,9 +79,24 @@ Before changing any monitor, deliver:
 - why you chose one fix
 - the final customer explanation
 
-## Extra Challenge - Metric Resolution
+## Mission 1 - Refunds Total: Consistency Check
 
-The application sends the same values through different DogStatsD metric types. Use this to prove how the Agent aggregates values during the flush interval.
+Finance says the refund numbers on the monitor do not match what they see on the business dashboard, even though the application always emits the same four values in every batch.
+
+Starting points:
+
+1. Open the monitor named `[Day5-A] Refunds Total - Consistency Check`.
+2. Compare `ecommerce.refunds_varied.gauge_demo`, `ecommerce.refunds_varied.count_demo`, and `ecommerce.refunds_varied.histogram_demo` in Metrics Explorer for the same time window.
+3. Confirm that the application sends the same four values, 10, 50, 200, and 500, through all three submission types in every batch.
+4. Decide which submission type and statistic actually answers the business question Finance is asking.
+
+Before changing the monitor, deliver:
+
+- the current monitor flaw in one sentence
+- one rejected alternative hypothesis
+- two possible fixes and the trade-off between them
+- the evidence that made you choose the final fix
+- a customer-ready explanation
 
 Metrics to compare:
 
@@ -92,6 +107,10 @@ Metrics to compare:
 | `ecommerce.refunds_varied.histogram_demo.avg` | histogram | Which statistic describes the center? |
 | `ecommerce.refunds_varied.histogram_demo.max` | histogram | Which statistic preserves the worst value? |
 | `ecommerce.refunds_varied.histogram_demo.count` | histogram | How do you prove how many samples entered the flush? |
+
+Stretch challenge:
+
+- Design a single dashboard widget that shows the real refund volume without anyone needing to know DogStatsD internals. Defend why gauge, count, or histogram is the right submission type for this specific business question.
 
 Expert defense:
 

@@ -1,5 +1,5 @@
 """
-Log-generating application for Day 4 — Logs Lab.
+Log-generating application for the Day 4 Logs Lab.
 Generates structured JSON logs with various patterns:
 - Normal operation logs (INFO)
 - Retry storms (ERROR bursts from a specific service)
@@ -17,6 +17,9 @@ import logging
 SERVICES = ["auth-service", "payment-service", "order-service", "notification-service", "inventory-service"]
 REGIONS = ["br-south", "br-southeast", "br-northeast"]
 ENVIRONMENTS = ["production"]
+
+FIRST_CRITICAL_DELAY_SECONDS = (60, 180)
+CRITICAL_INTERVAL_SECONDS = (1500, 3000)
 
 
 def structured_log(level, message, service, **extra):
@@ -70,7 +73,7 @@ def retry_storm():
 
 
 def auth_failures():
-    """Burst of authentication failures — could be a brute force attack or misconfigured service."""
+    """Burst of authentication failures, either a brute force attempt or a misconfigured service."""
     user_ids = [f"user-{random.randint(1, 50)}" for _ in range(random.randint(3, 10))]
     for uid in user_ids:
         structured_log(
@@ -112,7 +115,7 @@ def debug_spam():
 
 
 def critical_errors():
-    """Rare but critical errors that should always be caught."""
+    """Serious infrastructure failures that take a component out of service."""
     errors = [
         ("Database connection lost", "ConnectionError", "order-service"),
         ("Out of memory in worker process", "MemoryError", "inventory-service"),
@@ -132,7 +135,13 @@ if __name__ == "__main__":
     print(json.dumps({"level": "INFO", "message": "Log generator started", "service": "log-generator"}), flush=True)
     time.sleep(5)
 
+    next_critical_at = time.monotonic() + random.uniform(*FIRST_CRITICAL_DELAY_SECONDS)
+
     while True:
+        if time.monotonic() >= next_critical_at:
+            critical_errors()
+            next_critical_at = time.monotonic() + random.uniform(*CRITICAL_INTERVAL_SECONDS)
+
         r = random.random()
         if r < 0.50:
             normal_operation()
@@ -144,8 +153,6 @@ if __name__ == "__main__":
             slow_query_warnings()
         elif r < 0.90:
             debug_spam()
-        elif r < 0.95:
-            critical_errors()
         else:
             normal_operation()
 

@@ -43,6 +43,10 @@ for monitor in data.get("monitors", []):
 PY
 }
 
+# Matching is by exact monitor name. A monitor that was renamed in the payload
+# will not be found under its new name, so this function POSTs a new monitor and
+# the old one survives alongside it. After renaming any monitor, run
+# ./monitors/create_monitors.sh --cleanup once before creating again.
 create_monitor_from_file() {
     local payload_file="$1"
     local name

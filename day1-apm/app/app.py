@@ -43,8 +43,7 @@ def get_product(product_id):
 
 @app.route("/checkout", methods=["POST", "GET"])
 def checkout():
-    # Intentionally slow — simulates payment gateway latency.
-    # Most requests take 100-300ms, but ~20% take 2-6 seconds (tail latency).
+    # Simulated payment gateway. Response time is deliberately uneven across requests.
     if random.random() < 0.20:
         delay = random.uniform(2.0, 6.0)
     elif random.random() < 0.10:
@@ -68,7 +67,7 @@ def checkout():
 def inventory():
     time.sleep(random.uniform(0.05, 0.2))
 
-    # ~10% chance of a slow DB simulation
+    # Simulated dependency call with variable response time.
     if random.random() < 0.10:
         time.sleep(random.uniform(1.0, 3.0))
 

@@ -8,6 +8,7 @@ load_learning_week_env
 require_kubernetes_tools
 
 echo "=== Day 2 — Containers cleanup ==="
+kubectl delete -f "$ROOT_DIR/day2-containers/k8s/missing-tag-app.yaml" --ignore-not-found || true
 kubectl delete -f "$ROOT_DIR/day2-containers/k8s/stress-app.yaml" --ignore-not-found || true
 kubectl delete -f "$ROOT_DIR/day2-containers/k8s/sample-app.yaml" --ignore-not-found || true
 helm uninstall datadog-agent -n datadog 2>/dev/null || true
