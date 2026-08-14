@@ -1,11 +1,18 @@
 #!/bin/bash
-# Hands off to Terminal so the participant has a window to read and to stop.
+# Hands off to Terminal, and that is a macOS requirement rather than a style
+# choice. An unsigned app bundle launched from the Finder is refused read and
+# execute access to ~/Desktop, ~/Documents and ~/Downloads by TCC: running the
+# scripts straight from here fails with "Operation not permitted". Terminal
+# already holds that permission, so the work happens there.
+#
+# The window that appears is also where the panel's output goes. Leave it open
+# while you use the panel. Stop with Quit in the panel, or Ctrl+C in the window.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 
 if [ ! -f "$ROOT/lab-ui/server.py" ]; then
-  /usr/bin/osascript -e 'display alert "Learning Week" message "This app has to stay inside the Learning Week folder you cloned, next to the lab-ui folder. Move it back and try again." as critical'
+  /usr/bin/osascript -e 'display alert "Learning Week" message "This app has to stay inside the Learning Week folder you cloned, next to the lab-ui folder. Move it back and try again." as critical' >/dev/null 2>&1
   exit 1
 fi
 

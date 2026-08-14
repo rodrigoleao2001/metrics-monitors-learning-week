@@ -21,9 +21,24 @@ echo ""
 
 # Step 1: Start minikube
 echo "[1/5] Starting minikube cluster: ${CLUSTER_NAME}..."
-if minikube status -p "$CLUSTER_NAME" &>/dev/null; then
+# `minikube status` succeeds on a profile whose metadata still exists in
+# ~/.minikube even when the cluster itself is gone, which is exactly what
+# happens after switching container runtime. Require the host and the kubelet
+# to actually report Running, and rebuild the cluster otherwise.
+_mk_alive() {
+    local out
+    out="$(minikube status -p "$CLUSTER_NAME" 2>/dev/null)" || return 1
+    grep -q "host: Running" <<<"$out" && grep -q "kubelet: Running" <<<"$out"
+}
+
+if _mk_alive; then
     echo "  Cluster already running."
 else
+    if minikube profile list 2>/dev/null | grep -q "$CLUSTER_NAME"; then
+        echo "  A profile named $CLUSTER_NAME exists but its cluster is not running."
+        echo "  Deleting the stale profile before rebuilding."
+        minikube delete -p "$CLUSTER_NAME" >/dev/null 2>&1 || true
+    fi
     minikube start -p "$CLUSTER_NAME" \
         --cpus=4 \
         --memory=4096 \

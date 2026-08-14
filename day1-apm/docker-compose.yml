@@ -49,6 +49,7 @@ services:
       - ./metric_types_demo.py:/demo/metric_types_demo.py:ro
       - ./monitor_concepts_demo.py:/demo/monitor_concepts_demo.py:ro
       - ./checkout_errors_demo.py:/demo/checkout_errors_demo.py:ro
+      - ./batch_sync_demo.py:/demo/batch_sync_demo.py:ro
     depends_on:
       - flask-app
     networks:
@@ -114,6 +115,34 @@ services:
         while true; do
           python -u /demo/checkout_errors_demo.py
           sleep 60
+        done
+    depends_on:
+      - datadog-agent
+    networks:
+      - day1-network
+    restart: unless-stopped
+
+  batch-sync-demo:
+    build:
+      context: ./traffic-generator
+    container_name: batch-sync-demo-day1
+    environment:
+      - DD_AGENT_HOST=datadog-agent
+      # The pause has to be long enough to leave a genuinely empty interval in
+      # the series. A 60s pause only thinned two minute buckets, it emptied
+      # neither, and the monitor stayed OK straight through it.
+      - REPORT_INTERVAL=${LW_REPORT_INTERVAL:-15}
+      - CYCLE_SECONDS=${LW_CYCLE_SECONDS:-1080}
+      - DROPOUT_SECONDS=${LW_DROPOUT_SECONDS:-480}
+    volumes:
+      - ./batch_sync_demo.py:/demo/batch_sync_demo.py:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 15
+        while true; do
+          python -u /demo/batch_sync_demo.py
+          sleep 5
         done
     depends_on:
       - datadog-agent

@@ -80,8 +80,16 @@ create_monitor_from_file() {
             echo "  ↳ Already exists, skipping"
         fi
     else
+        # This used to print and carry on, so six rejected monitors in a row
+        # still ended with "lab is up" and an exit code of 0. A monitor that was
+        # not created is a lab that does not work, so fail loudly.
         echo "  ✗ Failed (HTTP $http_code)"
         echo "  $body" | head -3
+        rm -f "$payload_file"
+        echo ""
+        echo "ERROR: could not create monitor \"$name\" (HTTP $http_code)."
+        echo "The lab is not usable without its monitors. Nothing further will run."
+        return 1
     fi
 
     rm -f "$payload_file"

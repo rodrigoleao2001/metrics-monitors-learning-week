@@ -90,6 +90,28 @@ wait_for_k8s_agent() {
 }
 
 # ── .env helpers ──────────────────────────────────────────────────────────────
+# ── keychain helpers ────────────────────────────────────────────────────────
+# Credentials belong in the login keychain, not in a plaintext file. These are
+# no-ops on a platform without the `security` CLI, and the caller then falls
+# back to prompting.
+_KC_SERVICE="learning-week-datadog"
+
+_kc_get() {
+    command -v security >/dev/null 2>&1 || return 0
+    security find-generic-password -s "$_KC_SERVICE" -a "$1" -w 2>/dev/null || true
+}
+
+_kc_set() {
+    if ! command -v security >/dev/null 2>&1; then
+        warn "No login keychain here, so this key will not be remembered."
+        return 0
+    fi
+    security add-generic-password -U -s "$_KC_SERVICE" -a "$1" -w "$2" \
+        -D "Learning Week lab credential" >/dev/null 2>&1 \
+        && ok "Stored $1 in the login keychain" \
+        || warn "Could not write $1 to the login keychain"
+}
+
 _env_get() { grep -E "^$1=" "$ROOT_DIR/.env" | cut -d= -f2- | tr -d '"' || true; }
 
 _env_set() {
@@ -319,23 +341,33 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
     [[ -f "$ROOT_DIR/.env" ]] || cp "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
 
     local _api _app _site
-    _api="$(_env_get DD_API_KEY)"
-    _app="$(_env_get DD_APP_KEY)"
+    # Keys come from the environment first: the control panel injects them from
+    # the login keychain. .env deliberately no longer holds them.
+    _api="${DD_API_KEY:-$(_kc_get DD_API_KEY)}"
+    _app="${DD_APP_KEY:-$(_kc_get DD_APP_KEY)}"
     _site="$(_env_get DD_SITE)"; _site="${_site:-datadoghq.com}"
 
     if [[ -z "$_api" || "$_api" == "your_api_key_here" ]]; then
+        if [[ ! -t 0 ]]; then
+            die "No Datadog API key available. Add it in the control panel (./start-ui.sh), which stores it in the login keychain."
+        fi
         echo ""
         echo "  Get your API key: https://app.${_site}/organization-settings/api-keys"
-        read -r -p "  Datadog API Key: " _api
-        _env_set "DD_API_KEY" "$_api"
+        read -r -s -p "  Datadog API Key: " _api; echo ""
+        _kc_set "DD_API_KEY" "$_api"
     fi
 
     if [[ -z "$_app" || "$_app" == "your_app_key_here" ]]; then
+        if [[ ! -t 0 ]]; then
+            die "No Datadog application key available. Add it in the control panel (./start-ui.sh), which stores it in the login keychain."
+        fi
         echo ""
         echo "  Get your APP key: https://app.${_site}/organization-settings/application-keys"
-        read -r -p "  Datadog APP Key: " _app
-        _env_set "DD_APP_KEY" "$_app"
+        read -r -s -p "  Datadog APP Key: " _app; echo ""
+        _kc_set "DD_APP_KEY" "$_app"
     fi
+
+    export DD_API_KEY="$_api" DD_APP_KEY="$_app" DD_SITE="$_site"
 
     warn "Validating API keys..."
     local _vr
@@ -356,8 +388,11 @@ PY
 )
     case "$_vr" in
         ok)      ok "API keys valid (site: ${_site})" ;;
-        invalid) die "API keys rejected. Check DD_API_KEY / DD_APP_KEY in $ROOT_DIR/.env" ;;
-        *)       warn "Key validation failed (${_vr}) — continuing." ;;
+        invalid) die "API keys rejected by ${_site}. Fix them in the control panel (./start-ui.sh), which stores them in the login keychain." ;;
+        # An error here used to be a warning, and the setup carried on to print
+        # success with zero monitors created. A key we cannot validate is a key
+        # we cannot use, so stop.
+        *)       die "Could not validate the Datadog keys against ${_site} (${_vr}). Check the site setting and your network, then try again." ;;
     esac
 
     set -a; source "$ROOT_DIR/.env"; set +a

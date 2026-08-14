@@ -87,6 +87,14 @@ All three run a small local server on `127.0.0.1:8765` and open
 `http://127.0.0.1:8765`. Nothing is exposed outside your machine. Python 3.8 or
 newer is the only requirement, with no packages to install.
 
+**Docker starts itself.** Every lab needs Docker, so if the engine is not
+running when the panel opens, the panel launches Docker Desktop, or Colima if
+that is what you use, and shows you the wait second by second. The Start buttons
+stay locked until the engine accepts connections, then unlock on their own. You
+do not have to go and find the app. A first-ever Docker launch may be waiting for
+you to accept its licence agreement, so glance at its window if the wait passes a
+minute. To turn the auto-start off: `LAB_UI_NO_DOCKER_START=1 ./start-ui.sh`.
+
 If the port is already in use the panel says so and tells you what to do. To
 pick another one: `LAB_UI_PORT=8766 ./start-ui.sh`.
 
@@ -106,24 +114,33 @@ starting a second day asks you to stop the first.
 
 ## First-Time Setup
 
-The control panel handles this for you. To do it by hand instead, copy the
-example environment file and add your own Datadog keys:
+Your Datadog keys are **not** stored in a file. The control panel puts them in
+the macOS login keychain, which is encrypted at rest and unlocked by your login
+password. Open the panel and paste both keys into the credentials form:
 
 ```bash
-cp .env.example .env
+./start-ui.sh
 ```
 
-Set:
+Press Save. The panel checks the shape of each key, stores it, and then asks
+Datadog whether it works. `.env` keeps only `DD_SITE`, which is not a secret.
+
+Each participant uses their own Datadog org and their own keys. The application
+key needs permission to read and write monitors.
+
+To run the lab scripts from a plain terminal instead of the panel, export the
+keys into your shell first:
 
 ```bash
-DD_API_KEY=...
-DD_APP_KEY=...
-DD_SITE=datadoghq.com
+eval "$(./lw-keys.sh)"
+./setup_day1_apm.sh
 ```
 
-Each participant should use their own Datadog org and their own API/application
-keys. The application key needs permission to read and write monitors. `.env` is
-listed in `.gitignore`, so your keys are never committed.
+Two limits worth knowing. Writing to the keychain passes the value as a command
+argument, so it is briefly visible to `ps` for your own user during that one
+write. And once a lab is running, the Datadog Agent container holds the API key
+in its own environment, where `docker inspect` can read it: the Agent needs the
+key to send data, so no storage choice avoids that.
 
 ## Daily Setup
 

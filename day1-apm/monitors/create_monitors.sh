@@ -19,7 +19,7 @@ echo ""
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day1] APM Latency - All Good",
+  "name": "[Day1] APM Latency",
   "type": "metric alert",
   "query": "avg(last_5m):avg:trace.flask.request{service:flask-store,env:learning-week} > 1",
   "message": "Average latency is above 1s.\n\nThis monitor looks healthy... but is it really?\n\n@slack-alerts",
@@ -92,7 +92,32 @@ cat > "$P" <<'JSON'
 JSON
 create_monitor_from_file "$P"
 
-# Monitor 5
+# Monitor 5 — Mission 5: a monitor that is correctly configured
+# No planted flaw. This is the "legitimate alert" case: p95, scoped to one
+# resource_name, sane window and threshold, all the practice the earlier
+# missions argue for. It alerts because /inventory genuinely has a 10% chance
+# per request of an extra 1-3s delay (app.py, the inventory handler). The
+# mission is to prove the alert is real with trace-level evidence, not to fix
+# the monitor.
+P=$(new_payload)
+cat > "$P" <<'JSON'
+{
+  "name": "[Day1] APM Inventory Latency",
+  "type": "metric alert",
+  "query": "avg(last_10m):p95:trace.flask.request{service:flask-store,env:learning-week,resource_name:get_/inventory} > 1",
+  "message": "Inventory endpoint p95 latency is above 1s.\n\nCheck the underlying traces before deciding whether this needs a fix.\n\n@slack-alerts",
+  "tags": ["learning-week:day1-apm"],
+  "options": {
+    "thresholds": {"critical": 1, "warning": 0.5},
+    "notify_no_data": false,
+    "renotify_interval": 0,
+    "evaluation_delay": 60
+  }
+}
+JSON
+create_monitor_from_file "$P"
+
+# Monitor 6
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
@@ -113,7 +138,7 @@ cat > "$P" <<'JSON'
 JSON
 create_monitor_from_file "$P"
 
-# Monitor 6
+# Monitor 7
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
@@ -125,6 +150,31 @@ cat > "$P" <<'JSON'
   "options": {
     "thresholds": {"critical": 0},
     "notify_no_data": false,
+    "renotify_interval": 0
+  }
+}
+JSON
+create_monitor_from_file "$P"
+
+# Monitor 8 — Mission 9: a monitor frozen at its last state
+# Flaw: require_full_window is true. When the window is not completely full the
+# evaluation is skipped, and a skipped evaluation keeps the previous state rather
+# than reporting No Data. The metric pauses 480s in every 1080s, which empties the
+# 5 minute window entirely, and the monitor stays OK straight through. Verified by
+# control: with require_full_window false the same query goes to No Data during the
+# gap, regardless of notify_no_data.
+P=$(new_payload)
+cat > "$P" <<'JSON'
+{
+  "name": "[Day1] Catalog Sync - Records Processed",
+  "type": "metric alert",
+  "query": "avg(last_5m):avg:flask_store.batch_sync_records{env:learning-week,service:flask-store} < 500",
+  "message": "Catalog sync processed fewer records than expected.\n\nThe sync feeds product availability. Finance found a failed sync themselves, two days later, while this monitor was green.\n\nWhat is this monitor reporting while its metric is sending nothing?\n\n@slack-alerts",
+  "tags": ["learning-week:day1-apm"],
+  "options": {
+    "thresholds": {"critical": 500},
+    "notify_no_data": false,
+    "require_full_window": true,
     "renotify_interval": 0
   }
 }

@@ -128,9 +128,10 @@ FAILURES = [
     (r"Docker is not running|Cannot connect to the Docker daemon|"
      r"docker daemon is not running|Is the docker daemon running",
      "Docker is not running",
-     "The lab needs Docker to create its containers, and the Docker engine is not "
-     "responding right now.",
-     ["Open Docker Desktop and wait until it says Engine running.",
+     "The lab needs a container runtime to create its containers, and the engine is "
+     "not responding right now.",
+     ["Start your runtime. Colima: colima start. A desktop runtime: open it and wait "
+      "until it reports that its engine is running.",
       "Come back here and press Start again."]),
 
     (r"port is already allocated|address already in use|Bind for .* failed",
@@ -168,19 +169,22 @@ FAILURES = [
     (r"Requested memory allocation.*is less than|insufficient memory|"
      r"Docker Desktop has only|not enough memory|cannot allocate memory|"
      r"Exiting due to RSRC_INSUFFICIENT",
-     "Docker does not have enough memory",
+     "Your container runtime does not have enough memory",
      "This day builds a Kubernetes cluster, which needs noticeably more memory than "
-     "the other days. Docker Desktop is currently allowed less than that.",
+     "the other days, and the runtime is allowed less than that. Under Colima the "
+     "cluster runs inside the Colima VM, so the VM has to be larger than the cluster "
+     "it holds.",
      ["Stop any other day that is still running.",
-      "In Docker Desktop, open Settings, then Resources, and raise the memory limit "
-      "to at least 8 GB.",
-      "Docker will restart. Then press Start again."]),
+      "Colima: colima stop, then colima start --cpu 4 --memory 12 --disk 60.",
+      "A desktop runtime: Settings, then Resources, raise memory to at least 8 GB.",
+      "Then press Start again."]),
 
     (r"command not found|: not found|executable file not found",
      "A required tool is not installed",
      "The setup script called a command that does not exist on this machine. The "
      "missing tool is named on the last line of the output below.",
-     ["Install the missing tool. This week needs docker, kubectl, minikube, helm, "
+     ["Install the missing tool. This week needs a container runtime plus docker, "
+      "docker-compose, kubectl, minikube, helm, "
       "curl and jq.",
       "On macOS, brew install <tool> covers all of them.",
       "Then press Start again."]),
@@ -285,6 +289,22 @@ _lock = threading.Lock()
 _job = None
 
 
+def job_env():
+    """Environment for a lab run: the keys from the keychain, for this run only.
+
+    The scripts still `source .env`, but .env no longer defines the keys, so
+    sourcing it cannot overwrite what is injected here.
+    """
+    env = {**os.environ, "TERM": "dumb", "NO_COLOR": "1"}
+    api, app = stored_keys()
+    if api:
+        env["DD_API_KEY"] = api
+    if app:
+        env["DD_APP_KEY"] = app
+    env.setdefault("DD_SITE", read_env().get("DD_SITE") or "datadoghq.com")
+    return env
+
+
 class Job:
     def __init__(self, action, day, script, stdin_text=None):
         self.action = action
@@ -314,7 +334,7 @@ class Job:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.PIPE if self._stdin_text else subprocess.DEVNULL,
-                env={**os.environ, "TERM": "dumb", "NO_COLOR": "1"},
+                env=job_env(),
             )
         except OSError as exc:
             self.buf += f"failed to launch {self.script}: {exc}\n".encode()
@@ -402,6 +422,63 @@ def _run(cmd, timeout=25):
 # --------------------------------------------------------------------------
 
 ENV_PATH = os.path.join(ROOT, ".env")
+
+# --------------------------------------------------------------------------
+# Where the keys live.
+#
+# Not in .env. On macOS they go into the login keychain, which is encrypted at
+# rest and unlocked by the login password, and .env keeps only DD_SITE, which is
+# not a secret. The panel reads them back only when it has to: to verify them,
+# to reveal one on request, and to hand them to a lab script as environment
+# variables for that one run.
+#
+# Two honest limits. The `security` CLI takes the value as an argument, so it is
+# briefly visible to `ps` for this same user during the write. And once a lab is
+# running, the Agent container holds the API key in its own environment, where
+# `docker inspect` can read it: that is inherent to the Agent needing the key,
+# not something this storage choice can fix.
+# --------------------------------------------------------------------------
+
+KEYCHAIN_SERVICE = "learning-week-datadog"
+USE_KEYCHAIN = sys.platform == "darwin" and shutil.which("security") is not None
+
+
+def keychain_get(account):
+    if not USE_KEYCHAIN:
+        return ""
+    p = subprocess.run(
+        ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
+         "-a", account, "-w"],
+        capture_output=True, text=True)
+    return p.stdout.strip() if p.returncode == 0 else ""
+
+
+def keychain_set(account, value):
+    if not USE_KEYCHAIN:
+        return False, "the login keychain is not available on this platform"
+    p = subprocess.run(
+        ["security", "add-generic-password", "-U", "-s", KEYCHAIN_SERVICE,
+         "-a", account, "-w", value,
+         "-D", "Learning Week lab credential",
+         "-j", "Stored by the Learning Week lab control panel"],
+        capture_output=True, text=True)
+    if p.returncode != 0:
+        return False, (p.stderr or p.stdout).strip()[:200]
+    return True, "stored in the login keychain"
+
+
+def keychain_delete(account):
+    if not USE_KEYCHAIN:
+        return
+    subprocess.run(["security", "delete-generic-password",
+                    "-s", KEYCHAIN_SERVICE, "-a", account],
+                   capture_output=True, text=True)
+
+
+def stored_keys():
+    """The two keys, from the keychain. Values never leave this process except
+    through the explicit reveal endpoint and the job environment."""
+    return keychain_get("DD_API_KEY"), keychain_get("DD_APP_KEY")
 PLACEHOLDER_RE = re.compile(r"^(your[_-]|<|\.\.\.|xxx)", re.I)
 DD_SITES = [
     "datadoghq.com",
@@ -503,17 +580,28 @@ def check_key_shape(kind, value):
     return True, "looks right"
 
 
-def credentials_state():
-    """Whether each key is set, and never any part of its value.
+def mask_key(value):
+    """A display form of a stored key: dots, then its last four characters.
 
-    No fragment of a stored key is sent to the browser, not even a masked tail.
-    Everyone brings their own keys, so the form always starts empty and shows
-    nothing that could look pre-filled.
+    The real key is never sent to the browser. Four characters out of a 32 or 40
+    character hex key is the usual way to let someone recognise which key is
+    stored, and it leaves the key itself far out of reach.
     """
+    if not _is_real(value):
+        return ""
+    if len(value) <= 8:
+        return "•" * len(value)
+    return "•" * (len(value) - 4) + value[-4:]
+
+
+def credentials_state():
     env = read_env()
+    api, app = stored_keys()
     return {
-        "api_key_set": _is_real(env.get("DD_API_KEY", "")),
-        "app_key_set": _is_real(env.get("DD_APP_KEY", "")),
+        "api_key_set": _is_real(api),
+        "app_key_set": _is_real(app),
+        "api_key_mask": mask_key(api),
+        "app_key_mask": mask_key(app),
         "site": env.get("DD_SITE", "") or "datadoghq.com",
         "sites": DD_SITES,
         "env_exists": os.path.isfile(ENV_PATH),
@@ -588,73 +676,204 @@ def verify_credentials(api_key, app_key, site):
 
 def _env_keys_present():
     cs = credentials_state()
-    if not cs["env_exists"]:
-        return False, "no .env file yet, fill in the credentials form above"
+    if not USE_KEYCHAIN:
+        return False, ("this platform has no login keychain, so the panel cannot "
+                       "store keys securely")
     missing = []
     if not cs["api_key_set"]:
         missing.append("DD_API_KEY")
     if not cs["app_key_set"]:
         missing.append("DD_APP_KEY")
     if missing:
-        return False, "not set in .env: " + ", ".join(missing)
-    return True, f"both keys set, site {cs['site']}"
+        return False, "not in the keychain yet: " + ", ".join(missing)
+    return True, f"both keys in the login keychain, site {cs['site']}"
 
 
-def preflight():
-    checks = []
+# --------------------------------------------------------------------------
+# Starting Docker.
+#
+# bootstrap.sh handles this by blocking on "press Enter when Docker Desktop
+# shows Engine running", which a panel cannot do. So the panel launches the
+# runtime itself and reports how far along it is, because the engine takes
+# roughly half a minute to accept connections and a silent wait reads as a hang.
+# --------------------------------------------------------------------------
 
-    have_docker = shutil.which("docker") is not None
-    checks.append({
-        "id": "docker-installed",
-        "label": "Docker CLI installed",
-        "ok": have_docker,
-        "detail": "found on PATH" if have_docker else "docker not found on PATH",
-    })
+# Datadog is removing Docker Desktop licences, with Colima as the recommended
+# replacement and Rancher Desktop where local Kubernetes is needed. So Colima is
+# tried first and Docker Desktop last: on a machine that still has both, the
+# panel should not be the thing that keeps opening the paid product.
+DOCKER_APPS = [
+    "/Applications/Rancher Desktop.app",
+    "/Applications/OrbStack.app",
+    "/Applications/Docker.app",
+    os.path.expanduser("~/Applications/Docker.app"),
+]
+DOCKER_BOOT_TIMEOUT = int(os.environ.get("LAB_UI_DOCKER_TIMEOUT", "150"))
 
-    docker_up = False
-    docker_detail = "skipped, Docker CLI not installed"
-    mem_gib = None
-    if have_docker:
-        rc, out, _ = _run(["docker", "info", "--format", "{{.MemTotal}}"], timeout=20)
-        docker_up = rc == 0 and out.isdigit()
-        if docker_up:
-            mem_gib = round(int(out) / (1024 ** 3), 1)
-            docker_detail = f"engine running, {mem_gib} GiB available to containers"
-        else:
-            docker_detail = "engine not responding, start Docker and retry"
-    checks.append({
-        "id": "docker-running",
-        "label": "Docker engine running",
-        "ok": docker_up,
-        "detail": docker_detail,
-    })
+# Day 2 asks minikube for 4096 MB across 2 nodes, and under Colima that cluster
+# runs inside the Colima VM rather than beside it. An 8 GB VM cannot host an
+# 8 GB cluster, so the VM is sized above it with headroom.
+COLIMA_CPU = os.environ.get("LAB_UI_COLIMA_CPU", "4")
+COLIMA_MEMORY = os.environ.get("LAB_UI_COLIMA_MEMORY", "12")
+COLIMA_DISK = os.environ.get("LAB_UI_COLIMA_DISK", "60")
 
-    keys_ok, keys_detail = _env_keys_present()
-    checks.append({
-        "id": "credentials",
-        "label": "Datadog keys in .env",
-        "ok": keys_ok,
-        "detail": keys_detail,
-    })
-
-    have_minikube = shutil.which("minikube") is not None
-    checks.append({
-        "id": "minikube",
-        "label": "minikube installed, Day 2 only",
-        "ok": have_minikube,
-        "detail": "found on PATH" if have_minikube else "not found, Day 2 setup will install it",
-        "advisory": True,
-    })
-
-    blocking = [c for c in checks if not c["ok"] and not c.get("advisory")]
-    return {
-        "checks": checks,
-        "ready": not blocking,
-        "memory_gib": mem_gib,
-    }
+_docker_boot = {"state": "idle", "detail": "", "waited": 0, "runtime": ""}
+_docker_lock = threading.Lock()
 
 
-def day_status(num):
+def docker_engine_up():
+    rc, out, _ = _run(["docker", "info", "--format", "{{.ServerVersion}}"], timeout=20)
+    return rc == 0 and bool(out.strip())
+
+
+def docker_runtime():
+    """Which local runtime this panel knows how to launch, if any.
+
+    Colima wins when present, because it is the recommended default now. A
+    desktop app is the fallback, Docker Desktop last within that list.
+    """
+    if shutil.which("colima"):
+        return "colima", None
+    if sys.platform == "darwin":
+        for path in DOCKER_APPS:
+            if os.path.isdir(path):
+                return "app", path
+    return None, None
+
+
+def runtime_label():
+    kind, path = docker_runtime()
+    if kind == "colima":
+        return "Colima"
+    if kind == "app":
+        return os.path.basename(path).replace(".app", "")
+    return "your container runtime"
+
+
+def memory_advice():
+    """How to give the runtime more memory. The instruction differs per runtime,
+    and pointing a Colima user at Docker Desktop settings just wastes their time."""
+    kind, _ = docker_runtime()
+    if kind == "colima":
+        return (f"Give the Colima VM more memory: colima stop, then "
+                f"colima start --cpu {COLIMA_CPU} --memory 12 --disk {COLIMA_DISK}")
+    return ("Open your runtime's Settings, then Resources, and raise the memory "
+            "limit to at least 8 GB")
+
+
+def docker_boot_state():
+    with _docker_lock:
+        return dict(_docker_boot)
+
+
+def _boot_docker():
+    kind, path = docker_runtime()
+    if kind is None:
+        with _docker_lock:
+            _docker_boot.update(
+                state="unsupported", runtime="",
+                detail="No Docker runtime here that the panel knows how to start.")
+        return
+
+    label = os.path.basename(path).replace(".app", "") if kind == "app" else "Colima"
+    with _docker_lock:
+        _docker_boot.update(state="starting", runtime=label, waited=0,
+                            detail=f"Asking {label} to start")
+
+    if kind == "app":
+        _run(["open", "-a", path], timeout=30)
+    else:
+        try:
+            subprocess.Popen(["colima", "start", "--cpu", COLIMA_CPU,
+                              "--memory", COLIMA_MEMORY, "--disk", COLIMA_DISK],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             stdin=subprocess.DEVNULL)
+        except OSError as exc:
+            with _docker_lock:
+                _docker_boot.update(state="failed", detail=f"Could not run colima: {exc}")
+            return
+
+    began = time.time()
+    while time.time() - began < DOCKER_BOOT_TIMEOUT:
+        if docker_engine_up():
+            with _docker_lock:
+                _docker_boot.update(state="ready", waited=int(time.time() - began),
+                                    detail=f"{label} is running")
+            return
+        with _docker_lock:
+            _docker_boot.update(waited=int(time.time() - began),
+                                detail=f"Waiting for {label} to finish starting")
+        time.sleep(3)
+
+    with _docker_lock:
+        _docker_boot.update(
+            state="failed", waited=int(time.time() - began),
+            detail=(f"{label} did not report a running engine within "
+                    f"{DOCKER_BOOT_TIMEOUT} seconds. If this is its first launch it may "
+                    f"be waiting for you to accept its licence agreement."))
+
+
+def start_docker_async(force=False):
+    """Kick off a start attempt. Returns why it declined, or None if it began."""
+    with _docker_lock:
+        if _docker_boot["state"] == "starting":
+            return "Docker is already starting."
+        if _docker_boot["state"] == "ready" and not force:
+            return "Docker is already running."
+    if docker_engine_up():
+        with _docker_lock:
+            _docker_boot.update(state="ready", detail="Docker is already running")
+        return "Docker is already running."
+    threading.Thread(target=_boot_docker, daemon=True).start()
+    return None
+
+
+# --------------------------------------------------------------------------
+# State caching.
+#
+# preflight() and day_status() used to shell out to `docker info`, `docker
+# compose ps` and `minikube status` directly inside the HTTP handler, on every
+# single /api/state poll. That is fine when those commands answer in
+# milliseconds, and a multi-second hang whenever Docker or Colima is slow to
+# respond, which happens right after the VM starts or restarts. Because the
+# front end polls this endpoint continuously, a single slow moment froze the
+# entire panel, not just the one request that hit it: exactly what "the UI
+# will not open" looks like from the outside.
+#
+# A background thread now does that work on a fixed interval and stores the
+# result here. The HTTP handler only ever reads the cache, so a slow `docker
+# info` call delays how fresh the number is, never how fast the page responds.
+# --------------------------------------------------------------------------
+
+_STATE_REFRESH_SECONDS = 2
+_state_lock = threading.Lock()
+_state_cache = {
+    "docker_running": {"ok": False, "detail": "checking…", "mem_gib": None},
+    "days": {n: ("checking", "checking…") for n in DAYS},
+}
+
+
+def _check_docker_running_live():
+    """The actual subprocess call. Only ever invoked from the refresh thread."""
+    if shutil.which("docker") is None:
+        return {"ok": False, "detail": "skipped, Docker CLI not installed", "mem_gib": None}
+    rc, out, _ = _run(["docker", "info", "--format", "{{.MemTotal}}"], timeout=20)
+    if rc == 0 and out.isdigit():
+        mem_gib = round(int(out) / (1024 ** 3), 1)
+        return {"ok": True, "mem_gib": mem_gib,
+                "detail": f"engine running, {mem_gib} GiB available to containers"}
+    boot = docker_boot_state()
+    if boot["state"] == "starting":
+        detail = f"{boot['detail']}, {boot['waited']}s so far"
+    elif boot["state"] in ("failed", "unsupported"):
+        detail = boot["detail"]
+    else:
+        detail = "engine not responding"
+    return {"ok": False, "detail": detail, "mem_gib": None}
+
+
+def _day_status_live(num):
+    """The actual subprocess calls for one day. Only from the refresh thread."""
     spec = DAYS[num]
     if spec["kind"] == "minikube":
         if shutil.which("minikube") is None:
@@ -690,6 +909,83 @@ def day_status(num):
     return "down", "not created"
 
 
+def _state_refresh_loop():
+    while True:
+        try:
+            dr = _check_docker_running_live()
+            days = {n: _day_status_live(n) for n in DAYS}
+            with _state_lock:
+                _state_cache["docker_running"] = dr
+                _state_cache["days"] = days
+        except Exception:
+            pass  # keep serving the previous snapshot rather than crash the loop
+        time.sleep(_STATE_REFRESH_SECONDS)
+
+
+def start_state_refresh_thread():
+    threading.Thread(target=_state_refresh_loop, daemon=True).start()
+
+
+def preflight():
+    checks = []
+
+    have_docker = shutil.which("docker") is not None
+    checks.append({
+        "id": "docker-installed",
+        "label": "Container runtime",
+        "ok": have_docker,
+        "detail": (f"docker CLI on PATH, runtime {runtime_label()}" if have_docker
+                   else "docker CLI not found on PATH"),
+    })
+
+    with _state_lock:
+        dr = dict(_state_cache["docker_running"])
+    checks.append({
+        "id": "docker-running",
+        "label": "Docker engine running",
+        "ok": dr["ok"],
+        "detail": dr["detail"],
+        # Lets the panel show a spinner and hold the buttons instead of an alarm.
+        "starting": (not dr["ok"]) and docker_boot_state()["state"] == "starting",
+    })
+
+    keys_ok, keys_detail = _env_keys_present()
+    checks.append({
+        "id": "credentials",
+        "label": "Datadog keys in .env",
+        "ok": keys_ok,
+        "detail": keys_detail,
+    })
+
+    have_minikube = shutil.which("minikube") is not None
+    checks.append({
+        "id": "minikube",
+        "label": "minikube installed, Day 2 only",
+        "ok": have_minikube,
+        "detail": "found on PATH" if have_minikube else "not found, Day 2 setup will install it",
+        "advisory": True,
+    })
+
+    blocking = [c for c in checks if not c["ok"] and not c.get("advisory")]
+    boot = docker_boot_state()
+    return {
+        "checks": checks,
+        "ready": not blocking,
+        "memory_gib": dr["mem_gib"],
+        "docker_boot": boot,
+        # Can the panel offer to start the runtime for you at all?
+        "can_start_docker": docker_runtime()[0] is not None,
+        # So the UI never has to name a product the policy is moving away from.
+        "runtime_label": runtime_label(),
+        "memory_advice": memory_advice(),
+    }
+
+
+def day_status(num):
+    with _state_lock:
+        return _state_cache["days"].get(num, ("checking", "checking…"))
+
+
 def full_state():
     pre = preflight()
     days = {}
@@ -715,6 +1011,17 @@ def full_state():
         "job": job,
         "root": ROOT,
     }
+
+
+_server = None
+
+
+def _shutdown():
+    """Stop serving. Any lab already up keeps running: those are separate
+    processes and Docker containers, not children of this one."""
+    time.sleep(0.3)
+    if _server is not None:
+        _server.shutdown()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -783,10 +1090,52 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, OSError):
             return {}
 
+    def _origin_ok(self):
+        """Reject a cross-origin browser request.
+
+        Matters for the reveal endpoint: without this, a page the participant
+        happens to be visiting could aim a simple POST at this port. A tool
+        like curl sends no Origin at all, which is fine.
+        """
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True
+        return origin in (f"http://{HOST}:{PORT}", f"http://localhost:{PORT}")
+
     def do_POST(self):
         global _job
         u = urlparse(self.path)
+
+        if not self._origin_ok():
+            return self._send(403, {"error": "cross-origin requests are not accepted"})
+
         payload = self._body()
+
+        if u.path == "/api/quit":
+            with _lock:
+                busy = _job is not None and _job.running
+            if busy and not payload.get("force"):
+                return self._send(409, {
+                    "error": "a job is still running",
+                    "detail": _job.label,
+                })
+            self._send(200, {"stopping": True})
+            # Shut down from another thread: this one still has to finish
+            # writing the response above.
+            threading.Thread(target=_shutdown, daemon=True).start()
+            return
+
+        if u.path == "/api/credentials/reveal":
+            # The key is sent only when the participant clicks Show, never on the
+            # polling endpoints, so it is not sitting in the page the whole session.
+            field = str(payload.get("field", ""))
+            account = {"api": "DD_API_KEY", "app": "DD_APP_KEY"}.get(field)
+            if not account:
+                return self._send(400, {"error": "field must be api or app"})
+            value = keychain_get(account)
+            if not _is_real(value):
+                return self._send(404, {"error": "nothing is stored for that field yet"})
+            return self._send(200, {"field": field, "value": value})
 
         if u.path == "/api/run":
             action = str(payload.get("action", ""))
@@ -846,6 +1195,12 @@ class Handler(BaseHTTPRequestHandler):
                 _job.start()
             return self._send(200, {"started": True, "job": _job.summary()})
 
+        if u.path == "/api/docker/start":
+            why = start_docker_async(force=bool(payload.get("force")))
+            if why:
+                return self._send(409, {"error": why, "docker_boot": docker_boot_state()})
+            return self._send(200, {"starting": True, "docker_boot": docker_boot_state()})
+
         if u.path == "/api/credentials":
             api_key = str(payload.get("api_key", "")).strip()
             app_key = str(payload.get("app_key", "")).strip()
@@ -853,31 +1208,38 @@ class Handler(BaseHTTPRequestHandler):
             if site not in DD_SITES:
                 return self._send(400, {"error": f"unknown Datadog site {site}"})
 
-            current = read_env()
-            updates = {"DD_SITE": site}
+            if not USE_KEYCHAIN:
+                return self._send(500, {"error": (
+                    "This panel stores keys in the macOS login keychain, which is "
+                    "not available here.")})
 
-            # An empty field means "keep whatever is already saved", so nobody
-            # has to retype a key just to change the site.
-            for kind, field, envvar in (("api", api_key, "DD_API_KEY"),
-                                        ("app", app_key, "DD_APP_KEY")):
+            stored_api, stored_app = stored_keys()
+            # An empty field means "keep what is already stored", so nobody has
+            # to retype a key just to change the site.
+            for kind, field, account, existing in (
+                    ("api", api_key, "DD_API_KEY", stored_api),
+                    ("app", app_key, "DD_APP_KEY", stored_app)):
                 if field:
                     ok, why = check_key_shape(kind, field)
                     if not ok:
                         return self._send(400, {"error": why})
-                    updates[envvar] = field
-                elif not _is_real(current.get(envvar, "")):
+                    ok, why = keychain_set(account, field)
+                    if not ok:
+                        return self._send(500, {"error": f"keychain write failed: {why}"})
+                elif not _is_real(existing):
                     label = "API key" if kind == "api" else "application key"
                     return self._send(400, {"error": f"the {label} is still missing"})
 
-            ok, why = write_env(updates)
+            # .env carries the site only. It is not a secret and the lab scripts
+            # read it directly.
+            ok, why = write_env({"DD_SITE": site})
             if not ok:
                 return self._send(500, {"error": why})
 
             # Verify what is now on disk, so a save is confirmed in one step and
             # nobody has to paste the keys again just to check them.
-            saved = read_env()
-            verification = verify_credentials(
-                saved.get("DD_API_KEY", ""), saved.get("DD_APP_KEY", ""), site)
+            saved_api, saved_app = stored_keys()
+            verification = verify_credentials(saved_api, saved_app, site)
             return self._send(200, {
                 "saved": True,
                 "credentials": credentials_state(),
@@ -885,14 +1247,26 @@ class Handler(BaseHTTPRequestHandler):
             })
 
         if u.path == "/api/credentials/test":
-            # This tests only what was typed into the boxes. It must never fall
-            # back to whatever is already in .env, because then an empty form
-            # would report "works" and look like it had validated the blanks.
+            # Two explicit modes, never a silent fallback. Either the client sends
+            # keys it wants checked, or it asks for the stored ones by name and the
+            # answer is labelled as such, so a verdict can never be mistaken for a
+            # verdict on an empty box.
             api_key = str(payload.get("api_key", "")).strip()
             app_key = str(payload.get("app_key", "")).strip()
             site = str(payload.get("site", "")).strip() or "datadoghq.com"
             if site not in DD_SITES:
                 return self._send(400, {"error": f"unknown Datadog site {site}"})
+
+            if payload.get("use_saved") and not api_key and not app_key:
+                api_key, app_key = stored_keys()
+                if not _is_real(api_key) or not _is_real(app_key):
+                    return self._send(400, {"error": (
+                        "Nothing is saved yet. Paste both keys above, then press "
+                        "Test connection.")})
+                result = verify_credentials(api_key, app_key, site)
+                result["source"] = "saved"
+                return self._send(200, result)
+
             if not api_key or not app_key:
                 return self._send(400, {"error": (
                     "Paste both keys into the boxes above first. This button only checks "
@@ -901,7 +1275,9 @@ class Handler(BaseHTTPRequestHandler):
                 ok, why = check_key_shape(kind, value)
                 if not ok:
                     return self._send(400, {"error": why})
-            return self._send(200, verify_credentials(api_key, app_key, site))
+            result = verify_credentials(api_key, app_key, site)
+            result["source"] = "typed"
+            return self._send(200, result)
 
         if u.path == "/api/cancel":
             with _lock:
@@ -923,8 +1299,9 @@ def main():
         print("\nRun this from inside the Learning Week folder.")
         return 1
 
+    global _server
     try:
-        srv = ThreadingHTTPServer((HOST, PORT), Handler)
+        srv = _server = ThreadingHTTPServer((HOST, PORT), Handler)
     except OSError as exc:
         print(f"Could not listen on {HOST}:{PORT}: {exc}\n")
         print("Most likely the panel is already running in another window.")
@@ -938,7 +1315,9 @@ def main():
     print("=" * 62)
     print(f"  Repo:  {ROOT}")
     print(f"  Open:  {url}")
-    print("  Stop:  Ctrl+C")
+    # Detached there is no terminal to interrupt, so point at the right control.
+    print("  Stop:  the Quit button in the panel"
+          if os.environ.get("LAB_UI_DETACHED") == "1" else "  Stop:  Ctrl+C")
     print("=" * 62)
 
     # Opening the browser here rather than in each launcher keeps the Windows,
@@ -946,6 +1325,36 @@ def main():
     # is already bound so the first request cannot race the server.
     if os.environ.get("LAB_UI_NO_BROWSER") != "1":
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+
+    def _start_docker_in_background():
+        # docker_engine_up() shells out to `docker info`, which can take
+        # several seconds, longest right after Colima was stopped and the
+        # daemon has to wake back up. Running this inline used to block here
+        # BEFORE serve_forever() below, so the socket had accepted the
+        # browser's connection but nothing was reading from it yet: the tab
+        # would sit blank or spinning for however long that check took,
+        # which is exactly what "the panel will not open" looks like. This
+        # now runs after the server is already answering requests.
+        if docker_engine_up():
+            with _docker_lock:
+                _docker_boot.update(state="ready", detail="Docker was already running")
+            print("  Docker: already running")
+        else:
+            kind, path = docker_runtime()
+            if kind:
+                name = os.path.basename(path).replace(".app", "") if kind == "app" else "Colima"
+                print(f"  Docker: not running, starting {name} for you")
+                start_docker_async()
+            else:
+                print("  Docker: not running, and no runtime found to start")
+
+    if os.environ.get("LAB_UI_NO_DOCKER_START") != "1":
+        threading.Thread(target=_start_docker_in_background, daemon=True).start()
+
+    # Starts filling in the real docker/day state in the background. The very
+    # first poll or two may still show the "checking…" placeholders while the
+    # first pass completes, but the request itself never waits on it.
+    start_state_refresh_thread()
 
     try:
         srv.serve_forever()

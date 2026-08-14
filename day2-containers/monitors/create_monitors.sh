@@ -32,6 +32,15 @@ cat > "$P" <<'JSON'
 JSON
 create_monitor_from_file "$P"
 
+# Monitor 2 — Mission 2: Pod Restart Alert - Restart Tracking
+# Flaw: kubernetes.containers.restarts is a lifetime cumulative counter, so
+# once a pod crosses the threshold once it can never fall back below it, even
+# long after the pod stopped restarting.
+# Recommended fix, verified live on 2026-08-14, see PRESENTER_GUIDE.md for the
+# full note: sum(last_10m):monotonic_diff(avg:kubernetes.containers.restarts
+# {kube_cluster_name:learning-week-k8s} by {pod_name}) > 0. Do not point
+# students at change(), that function is already the flaw being taught in
+# Mission 3.
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
@@ -84,19 +93,25 @@ cat > "$P" <<'JSON'
 JSON
 create_monitor_from_file "$P"
 
-# Monitor 5
+# Monitor 5 — Mission 5: CrashLoop CPU Limits - Always Alerting
+# Flaw: kubernetes.cpu.limits is a static configuration value. crashloop-app's
+# pod spec sets its CPU limit to 50m; the threshold here is 10m. Since 50m is
+# always greater than 10m, this monitor has been continuously in Alert since
+# creation and can never return to OK, whether the pod is calmly running or
+# crash-looping. See day2-containers/PRESENTER_GUIDE.md for the full note on
+# why this mission was reframed away from its original require_full_window
+# premise, which did not reproduce in this environment.
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] CrashLoop CPU Limits - Silent Monitor",
+  "name": "[Day2] CrashLoop CPU Limits - Always Alerting",
   "type": "metric alert",
   "query": "avg(last_5m):avg:kubernetes.cpu.limits{kube_cluster_name:learning-week-k8s,kube_deployment:crashloop-app} by {pod_name} > 0.01",
-  "message": "CrashLoop workload has CPU limits set!\n\nThe crashloop-app container restarts every 15 seconds or so, and every restart has a CPU limit configured.\nThis monitor has never notified anyone. Should it have?\n\n@slack-infra",
+  "message": "CrashLoop workload has CPU limits set!\n\nThis monitor has been in Alert nonstop since the pod was created, whether the container is calmly running or crash-looping every 15 seconds.\nWhat is this metric actually measuring, and could it ever land on the other side of that threshold?\n\n@slack-infra",
   "tags": ["learning-week:day2-containers"],
   "options": {
     "thresholds": {"critical": 0.01, "warning": 0.005},
     "notify_no_data": false,
-    "require_full_window": true,
     "renotify_interval": 0
   }
 }

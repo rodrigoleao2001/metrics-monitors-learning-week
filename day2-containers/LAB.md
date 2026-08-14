@@ -180,15 +180,28 @@ Expert defense:
 
 ---
 
-## Mission 5 - CrashLoop Silent Monitor
+## Mission 5 - CrashLoop CPU Limits: Always Alerting
 
-A workload in this cluster restarts every few seconds and every restart is configured in a way this monitor is supposed to catch. The monitor has never notified anyone.
+A customer writes: "This alert has been red for three weeks straight. Nobody on the team even
+looks at it anymore." `[Day2] CrashLoop CPU Limits - Always Alerting` has never once returned to
+OK since the day it was created, no matter what else is happening on the cluster.
 
 Starting points:
 
-1. Confirm in `kubectl` that the workload really is restarting and really is configured the way the monitor expects.
-2. Plot the same metric the monitor uses, grouped the same way, and look at how long each series lasts.
-3. Compare what you see in the graph with what the monitor's own evaluation history shows.
+1. Open the monitor and read exactly what metric the query pulls and what it compares that metric
+   against.
+2. Run `kubectl describe pod` for the crashloop-app workload and find its configured CPU limit in
+   the pod spec.
+3. Compare that configured number with the monitor's threshold.
+4. Decide whether this metric could ever land on the other side of that threshold, under any
+   circumstance at all.
+
+Discussion questions:
+
+- What is the difference between a configuration value and a live measurement?
+- If a metric can only ever sit on one side of a threshold, what is the alert actually telling
+  anyone?
+- What would have to change about this monitor for it to carry real information?
 
 Before changing the monitor, deliver:
 
@@ -200,11 +213,14 @@ Before changing the monitor, deliver:
 
 Stretch challenge:
 
-- Design a safer monitor for a workload whose series are short lived.
+- Design a monitor for this same workload that would actually read green while it is healthy and
+  red while it is crash-looping.
 
 Expert defense:
 
-- Explain the difference between no data, incomplete window, and OK.
+- Explain why comparing a static configuration value against a fixed threshold can only ever
+  produce a monitor that is always right or always wrong, never one that is sometimes right, and
+  how you would find this same pattern across an entire account before a customer does.
 
 ---
 
