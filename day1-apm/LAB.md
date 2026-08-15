@@ -316,7 +316,7 @@ Expert defense:
 
 A customer writes: "Our on-call channel is unusable. We're getting paged
 constantly for what looks like the same issue, over and over."
-`[Day1] Checkout Errors - Alert Volume Check` is the monitor behind it.
+`[Day1] Checkout Errors` is the monitor behind it.
 
 Starting points:
 
@@ -324,7 +324,7 @@ Starting points:
    Explorer without any group-by. Then add a group-by and watch how many
    series appear. Describe what you see in your own words before reading the
    monitor's configuration.
-2. Open `[Day1] Checkout Errors - Alert Volume Check`.
+2. Open `[Day1] Checkout Errors`.
 3. Inspect which dimension the query groups by.
 4. Estimate how many distinct values that dimension can take.
 5. Decide which dimension actually maps to someone who can act on the alert.
@@ -418,7 +418,7 @@ Expert defense:
 
 ## Mission 9 - Catalog Sync: The Monitor That Stopped Answering
 
-`[Day1] Catalog Sync - Records Processed` reads OK. It has read OK all week.
+`[Day1] Catalog Sync` reads OK. It has read OK all week.
 
 The sync it watches stops for several minutes at a time, and during those
 stretches the metric sends nothing at all. The monitor keeps reading OK straight
@@ -471,7 +471,7 @@ Expert defense:
 
 ## Facilitator demo - monitor evaluation concepts
 
-`[Day1] DEMO - Monitor Evaluation Concepts` is not a mission and there is nothing in it for you to diagnose. The facilitator uses it live during the session to demonstrate Evaluation Window, Require Full Window, and New Group Delay.
+`[Day1] DEMO` is not a mission and there is nothing in it for you to diagnose. The facilitator uses it live during the session to demonstrate Evaluation Window, Require Full Window, and New Group Delay.
 
 ## Bonus Challenges
 

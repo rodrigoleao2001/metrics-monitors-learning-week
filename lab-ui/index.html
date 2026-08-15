@@ -1743,7 +1743,7 @@ const DAY1_MISSIONS = [
     title: 'Mission 6 - Checkout Errors: Alert Volume Check',
     story: 'A customer reports that their on-call channel has become unusable, paged ' +
       'constantly for what looks like the exact same checkout error, over and over, dozens of ' +
-      'times in a single incident. <b>[Day1] Checkout Errors - Alert Volume Check</b> is the ' +
+      'times in a single incident. <b>[Day1] Checkout Errors</b> is the ' +
       'monitor causing it. Your job is to figure out why one underlying problem is producing ' +
       'dozens of separate pages instead of one, and redesign the alert so that a single ' +
       'incident generates a single actionable page, no matter how many individual shoppers ' +
@@ -1795,49 +1795,53 @@ const DAY1_MISSIONS = [
       'for checkout errors, but neither page alone actually tells on-call whether shoppers are ' +
       'being affected right now, both pages happen constantly for reasons that turn out to be ' +
       'harmless on their own. On-call has asked for one signal that only fires when both ' +
-      'conditions are genuinely true at the same time. The checkout team has already told ' +
-      'support what expected looks like: latency up to 5 seconds during the nightly batch job ' +
-      'is normal, and an error rate up to 2% during an active deploy is also normal. Anything ' +
-      'past both of those numbers at once, batch or no batch, deploy or no deploy, is what ' +
-      'they consider a real incident. Your job is to design a monitor that reflects exactly ' +
-      'that rule. As an example of the target behavior: high latency alone during the nightly ' +
-      'batch job should not page, elevated errors alone during a deploy should not page, but ' +
-      'both conditions crossing their lines at the same time, whenever that happens, should ' +
-      'page immediately.',
+      'conditions are genuinely true at the same time, together. Two monitors already exist for ' +
+      'exactly this purpose, built and verified live so this mission is entirely about the ' +
+      'combining logic, not about designing their queries: [Day1] Checkout Latency - Composite ' +
+      'Input and [Day1] Checkout Error Rate. Each already sits comfortably at ' +
+      'OK on its own, checkout’s real latency and error rate are noisy day to day, and each of ' +
+      'these two thresholds is set with real headroom above that everyday noise, exactly like ' +
+      'the ask: high latency alone should not page, elevated errors alone should not page. Your ' +
+      'job is to combine those two existing monitors into one signal that only fires when both ' +
+      'are genuinely bad at the same time. As an example of the target behavior: if only the ' +
+      'latency monitor ever tips into Alert, on-call should not be paged; if only the error rate ' +
+      'monitor ever tips into Alert, on-call should not be paged either; only the moment both are ' +
+      'simultaneously in Alert should produce a page.',
     tiers: {
       expert: [
         'Find out exactly how Datadog combines monitors into one, and what happens to the ' +
         'combined result when one of them cannot evaluate at all.'
       ],
       familiar: [
-        'A monitor that combines two other monitors is built from their names joined by a word ' +
-        'like AND, not from a brand new query. Decide which two monitors, existing or new, ' +
-        'represent latency is bad and errors are bad for checkout.'
+        'Open both existing composite-input monitors and note their exact names and current ' +
+        'state. A monitor that combines two other monitors is built from their names joined by ' +
+        'a word like AND, not from a brand new query, so those two exact names are all you need.'
       ],
       beginner: [
         'A composite monitor does not run its own query. It watches the current state of two or ' +
         'more existing monitors and combines their results with logic like AND, so it can only ' +
         'fire when a specific combination of them is true at the same time.',
-        'To work through this mission, make sure you have one monitor representing bad latency ' +
-        'and one representing bad errors for checkout, note their exact names, then build a ' +
-        'composite monitor that combines the two, and think about what should happen if one of ' +
+        'To work through this mission, open [Day1] Checkout Latency and ' +
+        '[Day1] Checkout Error Rate, note their exact names, then build a new ' +
+        'Composite monitor that combines the two, and think about what should happen if one of ' +
         'them cannot report a status at all.'
       ],
       solution: [
-        'Build two component monitors first. Latency: avg(last_5m):p95:trace.flask.request' +
-        '{service:flask-store,env:learning-week,resource_name:get_/checkout} > 5, matching ' +
-        'the 5 second nightly-batch allowance. Errors: a query that expresses checkout’s error ' +
-        'rate as a percentage of checkout’s own traffic, using trace.flask.request.errors ' +
-        'divided by trace.flask.request.hits for that same resource_name, compared against 2, ' +
-        'matching the 2% active-deploy allowance.',
-        'Then create a new Composite monitor, select those two monitors by name, for example A ' +
-        'and B, and set the formula to A && B. Composite monitors are built from existing ' +
-        'monitor names joined by logic, not a new query of their own.',
-        'Why this works: && only reports Alert when both constituents are simultaneously in a ' +
-        'bad state, so high latency alone during the nightly batch job, or elevated errors ' +
-        'alone during a deploy, each stay within their already-agreed allowance and do not ' +
-        'page on their own. Only the combination, both conditions breached at the same time, ' +
-        'batch or no batch, deploy or no deploy, produces the page.',
+        'Create a new Composite monitor. In the monitor definition, select [Day1] Checkout ' +
+        'Latency - Composite Input as A and [Day1] Checkout Error Rate as B, ' +
+        'and set the formula to A && B. Composite monitors are built from existing monitor names ' +
+        'joined by logic, not a new query of their own, so no new metric query is needed here.',
+        'Why the two inputs already work, verified live: checkout’s real p95 latency runs ' +
+        'chronically around 4.3 to 5.3 seconds and its real error rate runs chronically around ' +
+        '2.8% to 5.7%, both are noisy every day, not just during some specific known event. The ' +
+        'latency input’s threshold, 6.5s, and the error rate input’s threshold, 15%, both sit ' +
+        'with real headroom above that everyday noise, which is why each one reads OK on its ' +
+        'own day to day, matching “high latency alone should not page, elevated errors alone ' +
+        'should not page.”',
+        'Why the composite works: && only reports Alert when both constituents are ' +
+        'simultaneously in a bad state. Since each input already normally sits at OK, the ' +
+        'composite normally sits at OK too, and only a genuine, simultaneous breach of both ' +
+        'thresholds at once would move it to Alert.',
         'For the Expert defense question: check the composite monitor’s options for how it ' +
         'treats a constituent that is in No Data, since that determines whether a monitor that ' +
         'cannot evaluate silently prevents the composite from ever alerting.'
@@ -1910,7 +1914,7 @@ const DAY1_MISSIONS = [
     title: 'Mission 9 - Catalog Sync: The Monitor That Stopped Answering',
     story: 'A customer’s finance team writes in, frustrated: they found a failed overnight ' +
       'sync themselves, two days after it happened, by noticing missing records in their own ' +
-      'reports. <b>[Day1] Catalog Sync - Records Processed</b> was supposed to catch exactly ' +
+      'reports. <b>[Day1] Catalog Sync</b> was supposed to catch exactly ' +
       'this. It has read OK all week. The sync job it watches actually stops for several ' +
       'minutes at a time, and during those stretches the metric sends nothing at all, no data, ' +
       'not a bad number, nothing. The monitor keeps reading OK straight through every one of ' +
@@ -1966,7 +1970,7 @@ const DAY1_MISSIONS = [
 const DAY2_MISSIONS = [
   {
     title: 'Mission 1 - CPU Limits: Fleet Overview',
-    story: 'Infrastructure is asking why <b>[Day2] K8s CPU Limits - Fleet Overview</b> feels ' +
+    story: 'Infrastructure is asking why <b>[Day2] K8s CPU Limits</b> feels ' +
       'useless: it reads OK right now, and even when it has fired in the past, nobody could ' +
       'ever tell from the alert which workload actually needed attention. The query averages ' +
       'configured CPU limits across the entire cluster into a single number. Two workloads in ' +
@@ -2135,7 +2139,7 @@ const DAY2_MISSIONS = [
     title: 'Mission 4 - Pod Count: Capacity Check',
     story: 'The infrastructure page looks calm, green across the board, but a specific ' +
       'deployment has been unable to serve any real traffic for the last twenty minutes, and ' +
-      'nobody found out from Datadog. <b>[Day2] K8s Pod Count - Capacity Check</b> sums up ' +
+      'nobody found out from Datadog. <b>[Day2] K8s Pod Count</b> sums up ' +
       'every running pod in the entire cluster and only worries if that total drops below 3, ' +
       'and the cluster as a whole always has comfortably more than 3 pods running somewhere, ' +
       'healthy or not. Figure out what running does and does not tell you about whether a ' +
@@ -2407,7 +2411,7 @@ const DAY2_MISSIONS = [
     story: 'A customer’s release manager writes in with a very specific complaint: a ' +
       'deployment was rolled out 20 minutes ago, the pod count in the dashboard looks exactly ' +
       'right, but the rollout itself never actually finished, none of the new pods are serving ' +
-      'traffic, and nobody was told. <b>[Day2] K8s Deployment - Rollout Stall</b> stayed quiet ' +
+      'traffic, and nobody was told. <b>[Day2] K8s Deployment</b> stayed quiet ' +
       'through all of it. Figure out what "the right number of pods exist" does and does not ' +
       'prove about whether a rollout actually succeeded, and build a monitor that would have ' +
       'caught this stall while it was still happening. As an example of the target behavior: ' +
@@ -2463,7 +2467,7 @@ const DAY3_MISSIONS = [
     title: 'Mission 1 - DB Size: Always Alerting',
     story: 'A customer writes in: the database size monitor has been red for as long as ' +
       'anyone can remember, so on-call has started ignoring it entirely, the classic problem ' +
-      'with an alert that is always on. <b>[Day3] DB Size - Always Alerting</b> compares the ' +
+      'with an alert that is always on. <b>[Day3] DB Size</b> compares the ' +
       'database’s total disk usage against a fixed number of bytes, and that number was set ' +
       'well below the size the database naturally settled at once real data started ' +
       'accumulating. Your job is to figure out whether raw size is even the right thing to ' +
@@ -2905,7 +2909,7 @@ const DAY3_MISSIONS = [
 const DAY4_MISSIONS = [
   {
     title: 'Mission 1 - Error Log Alert: Broad Match',
-    story: 'The on-call channel treats <b>[Day4] Error Log Alert - Broad Match</b> as ' +
+    story: 'The on-call channel treats <b>[Day4] Error Log Alert</b> as ' +
       'background noise at this point, it fires constantly and everyone has learned to ignore ' +
       'it, exactly how a real incident gets missed. The monitor searches for the bare word ' +
       'error anywhere in the log stream. Verified live against this environment’s own ' +
@@ -2965,7 +2969,7 @@ const DAY4_MISSIONS = [
   },
   {
     title: 'Mission 2 - Service Error Rate: Group Check',
-    story: '<b>[Day4] Service Error Rate - Group Check</b> pages on-call so often, for so many ' +
+    story: '<b>[Day4] Service Error Rate</b> pages on-call so often, for so many ' +
       'different alert groups, that people have started muting it during busy periods, ' +
       'exactly the failure mode a good monitor should never create. It groups by host, ' +
       'service, region, and log level all at once, verified live to produce dozens of ' +
@@ -3073,7 +3077,7 @@ const DAY4_MISSIONS = [
   },
   {
     title: 'Mission 4 - Log Volume: Baseline Check',
-    story: '<b>[Day4] Log Volume - Baseline Check</b> pages the platform team whenever total ' +
+    story: '<b>[Day4] Log Volume</b> pages the platform team whenever total ' +
       'log volume crosses 200 lines in 15 minutes, and it fires often, but almost every time, ' +
       'the actual cause turns out to be a burst of routine debug output, not a real problem. ' +
       'Verified live in this environment, debug-level logs alone accounted for nearly half of ' +
@@ -3127,7 +3131,7 @@ const DAY4_MISSIONS = [
   },
   {
     title: 'Mission 5 - Critical Error Watch: Evaluation Check',
-    story: '<b>[Day4] Critical Error Watch - Evaluation Check</b> has never once alerted since ' +
+    story: '<b>[Day4] Critical Error Watch</b> has never once alerted since ' +
       'it was created, and yet Logs Search plainly shows real status:critical events ' +
       'happening in this environment. Someone needs to reconcile those two facts before ' +
       'assuming either the monitor or the logs are lying. The generator behind these events ' +
@@ -3180,7 +3184,7 @@ const DAY4_MISSIONS = [
   },
   {
     title: 'Mission 6 - Payment Retry Storm: Notification Check',
-    story: '<b>[Day4] Payment Retry Storm - Notification Check</b> does exactly what a ' +
+    story: '<b>[Day4] Payment Retry Storm</b> does exactly what a ' +
       'monitor should: it correctly identifies a real, active payment gateway timeout storm, ' +
       'verified live firing with well over a hundred matching timeout logs in a single ' +
       '10-minute window, far past its threshold. And yet the incident still drags on longer ' +
@@ -4161,7 +4165,7 @@ function renderGuide() {
     <div class="m-card">
       <div class="m-head" data-m="${i}" role="button" tabindex="0" aria-expanded="false">
         <span class="m-num">${i + 1}</span>
-        <span class="m-title">${m.title.replace(/^Mission \d+ - /, '')}</span>
+        <span class="m-title">${m.title.replace(/^Mission \d+ - /, '').replace(/^[^:]*:\s*/, '')}</span>
         <span class="caret" data-mcaret="${i}">show</span>
       </div>
       <div class="m-body" data-mbody="${i}" hidden>

@@ -85,7 +85,7 @@ Finance says the refund numbers on the monitor do not match what they see on the
 
 Starting points:
 
-1. Open the monitor named `[Day5-A] Refunds Total - Consistency Check`.
+1. Open the monitor named `[Day5-A] Refunds Total`.
 2. Compare `ecommerce.refunds_varied.gauge_demo`, `ecommerce.refunds_varied.count_demo`, and `ecommerce.refunds_varied.histogram_demo` in Metrics Explorer for the same time window.
 3. Confirm that the application sends the same four values, 10, 50, 200, and 500, through all three submission types in every batch.
 4. Decide which submission type and statistic actually answers the business question Finance is asking.

@@ -188,7 +188,7 @@ The monitor says reconciliation stopped in the last five minutes. Finance is wor
 
 Starting points:
 
-1. Open `[Day3] Orders Reconciliation - No Recent Activity`.
+1. Open `[Day3] Orders Reconciliation`.
 2. Plot `postgres_app.orders_reconciled_total` in Metrics Explorer for the last hour.
 3. Compare the same graph at several different offsets from now and note where points land.
 4. Decide whether reconciliation actually stopped, and name the evidence that settles it.
@@ -217,7 +217,7 @@ Starting points:
 
 1. Run `SELECT pid, state, now() - state_change AS duration, query FROM pg_stat_activity WHERE state = 'idle in transaction' ORDER BY duration DESC;` directly in the database.
 2. Find the metric that exposes sessions by state. Compare `active`, `idle`, and `idle in transaction` counts separately.
-3. Open `[Day3] DB Connections - Last Resort Alert` and check whether its threshold would have triggered on a single idle-in-transaction session.
+3. Open `[Day3] DB Connections` and check whether its threshold would have triggered on a single idle-in-transaction session.
 4. Decide whether connection count alone is the right signal for lock-driven hangs.
 
 Before building the monitor, deliver:

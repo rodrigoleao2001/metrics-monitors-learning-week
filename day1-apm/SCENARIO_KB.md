@@ -22,7 +22,7 @@ Data takes three to five minutes to reach Datadog after the first start, so empt
 
 Every monitor in this lab carries the tag `learning-week:day1-apm`. Go to Monitors and then Manage and paste `tag:learning-week:day1-apm` into the search box, and you get the whole lab and nothing else from your org. The service itself sits under APM and then Services as `flask-store`, scoped to `env:learning-week`.
 
-That search returns eight monitors. Two of the nine missions in `LAB.md`, the composite monitor and the SLO burn rate mission, ask you to build your own monitor from scratch, so they have nothing pre-created to find. One of the eight, named `[Day1] DEMO - Monitor Evaluation Concepts`, is not a mission at all: nothing was planted in it, and there is nothing in it for you to diagnose, because the facilitator drives it live during the session to demonstrate Evaluation Window, Require Full Window, and New Group Delay. Leave it alone.
+That search returns eight monitors. Two of the nine missions in `LAB.md`, the composite monitor and the SLO burn rate mission, ask you to build your own monitor from scratch, so they have nothing pre-created to find. One of the eight, named `[Day1] DEMO`, is not a mission at all: nothing was planted in it, and there is nothing in it for you to diagnose, because the facilitator drives it live during the session to demonstrate Evaluation Window, Require Full Window, and New Group Delay. Leave it alone.
 
 Every monitor name in this document is written exactly as it appears in that list, so you can paste a name straight into the search box.
 
@@ -100,9 +100,9 @@ Ask yourself what evidence would prove this monitor is a false positive, what ev
 
 ## Mission 6: Checkout Errors, Alert Volume Check
 
-A customer writes in: their on-call channel is unusable, because they are getting paged constantly for what looks like the same issue over and over. `[Day1] Checkout Errors - Alert Volume Check` is the monitor behind it.
+A customer writes in: their on-call channel is unusable, because they are getting paged constantly for what looks like the same issue over and over. `[Day1] Checkout Errors` is the monitor behind it.
 
-Before you open the monitor, plot `flask_store.checkout_errors` in Metrics Explorer without any group-by, then add a group-by and watch how many series appear. Describe what you see in your own words. Then open the monitor named `[Day1] Checkout Errors - Alert Volume Check`. Inspect which dimension the query groups by, then find out how many distinct values that dimension really takes, using both the monitor's own group list and the same metric in Metrics Explorer. Compare that with the other tags available on the same metric.
+Before you open the monitor, plot `flask_store.checkout_errors` in Metrics Explorer without any group-by, then add a group-by and watch how many series appear. Describe what you see in your own words. Then open the monitor named `[Day1] Checkout Errors`. Inspect which dimension the query groups by, then find out how many distinct values that dimension really takes, using both the monitor's own group list and the same metric in Metrics Explorer. Compare that with the other tags available on the same metric.
 
 Ask yourself what makes a dimension a good group by choice and what makes it a poor one, what the group by choice does to the number of notifications a team receives, and which dimension would let one person own the fix for this failure.
 
@@ -124,7 +124,7 @@ Ask yourself what an error budget of 1% over 30 days means in minutes of downtim
 
 ## Mission 9: Catalog Sync, The Monitor That Stopped Answering
 
-The monitor named `[Day1] Catalog Sync - Records Processed` reads OK, and it has
+The monitor named `[Day1] Catalog Sync` reads OK, and it has
 read OK all week. The sync it watches stops for several minutes at a time, and
 during those stretches the metric sends nothing at all, yet the monitor keeps
 reading OK straight through them. Finance found a failed sync themselves, two

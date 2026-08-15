@@ -74,7 +74,7 @@ The monitor uses a cluster average. Which workload is hidden?
 
 Starting points:
 
-1. Open `[Day2] K8s CPU Limits - Fleet Overview`.
+1. Open `[Day2] K8s CPU Limits`.
 2. Plot the metric with and without `by {kube_deployment}`.
 3. Decide whether the current number points to an owner.
 
@@ -183,7 +183,7 @@ Expert defense:
 ## Mission 5 - CrashLoop CPU Limits: Always Alerting
 
 A customer writes: "This alert has been red for three weeks straight. Nobody on the team even
-looks at it anymore." `[Day2] CrashLoop CPU Limits - Always Alerting` has never once returned to
+looks at it anymore." `[Day2] CrashLoop CPU Limits` has never once returned to
 OK since the day it was created, no matter what else is happening on the cluster.
 
 Starting points:
@@ -230,7 +230,7 @@ One workload never gets its own alert group in a monitor grouped by deployment, 
 
 Starting points:
 
-1. Open `[Day2] K8s CPU Usage - Workload Check`.
+1. Open `[Day2] K8s CPU Usage`.
 2. Run `kubectl get deployments`, `kubectl get replicasets`, and `kubectl get pods -o wide` and compare what each command shows.
 3. Check which owner object each pod actually belongs to.
 4. Decide whether every workload in this cluster is guaranteed to have a `kube_deployment` tag.
@@ -259,7 +259,7 @@ Starting points:
 
 1. Run `kubectl get hpa -A` and note the current and maximum replica count for any HPA in the cluster.
 2. Find the Kubernetes state metric that exposes desired replicas and maximum allowed replicas for an HPA.
-3. Open `[Day2] K8s HPA - Saturation Watch` and inspect what it compares.
+3. Open `[Day2] K8s HPA` and inspect what it compares.
 4. Decide whether the monitor triggers early enough to allow action before the ceiling is reached.
 
 Before changing the monitor, deliver:
@@ -288,7 +288,7 @@ Starting points:
 1. Run `kubectl describe nodes` and inspect `Allocatable` vs `Requests` for CPU and memory.
 2. Find the Kubernetes metric that exposes allocatable CPU and the metric that exposes requested CPU by node.
 3. Compare these two values as a ratio and decide at what threshold new pods would be rejected.
-4. Open `[Day2] K8s Node CPU - Scheduling Pressure` and verify whether it actually catches the condition where the node is full but existing pods are not suffering.
+4. Open `[Day2] K8s Node CPU` and verify whether it actually catches the condition where the node is full but existing pods are not suffering.
 
 Before changing the monitor, deliver:
 
@@ -316,7 +316,7 @@ Starting points:
 1. Run `kubectl rollout status deployment/<name>` for each deployment in the cluster.
 2. Compare `kubernetes_state.deployment.replicas_updated` with `kubernetes_state.deployment.replicas_available` for each deployment.
 3. Find a deployment where updated replicas and available replicas diverge.
-4. Open `[Day2] K8s Deployment - Rollout Stall` and check whether it compares updated vs available, or just checks total running pods.
+4. Open `[Day2] K8s Deployment` and check whether it compares updated vs available, or just checks total running pods.
 
 Before changing the monitor, deliver:
 

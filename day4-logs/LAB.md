@@ -187,7 +187,7 @@ This monitor has never alerted. Logs Search shows that critical events did happe
 
 Starting points:
 
-1. Open `[Day4] Critical Error Watch - Evaluation Check` and read its status history.
+1. Open `[Day4] Critical Error Watch` and read its status history.
 2. Search `status:critical` in Logs Search and confirm for yourself that the events exist.
 3. Chart those events over time and describe the shape of the signal you get.
 4. Reconcile the two facts: real critical events in the logs, no alert from the monitor.
@@ -216,7 +216,7 @@ The monitor correctly detects a real payment gateway problem, but something abou
 
 Starting points:
 
-1. Open `[Day4] Payment Retry Storm - Notification Check`.
+1. Open `[Day4] Payment Retry Storm`.
 2. Search the matching logs and identify which service and error type they belong to.
 3. Inspect who the monitor message notifies.
 4. Decide whether that audience can act on this specific failure.

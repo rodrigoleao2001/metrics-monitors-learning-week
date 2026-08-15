@@ -18,7 +18,7 @@ echo ""
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] K8s CPU Limits - Fleet Overview",
+  "name": "[Day2] K8s CPU Limits",
   "type": "metric alert",
   "query": "avg(last_10m):avg:kubernetes.cpu.limits{kube_cluster_name:learning-week-k8s} > 0.5",
   "message": "Average CPU limit across all pods is high!\n\nBut is the CLUSTER average of CPU limits really meaningful?\nSome pods have 300m and others have 50m.\nHow would you fix this monitor to identify over/under-provisioned workloads?\n\n@slack-infra",
@@ -44,7 +44,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] Pod Restart Alert - Restart Tracking",
+  "name": "[Day2] Pod Restart Alert",
   "type": "metric alert",
   "query": "max(last_5m):max:kubernetes.containers.restarts{kube_cluster_name:learning-week-k8s} by {pod_name} > 3",
   "message": "Pod {{pod_name.name}} has restarted more than 3 times!\n\nThis monitor is stuck in ALERT.\nIs this really detecting an active problem, or just a historical one?\n\n@pagerduty-k8s",
@@ -61,7 +61,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] Container Memory Limits - Configuration Watch",
+  "name": "[Day2] Container Memory Limits",
   "type": "metric alert",
   "query": "change(avg(last_5m),last_15m):avg:kubernetes.memory.limits{kube_cluster_name:learning-week-k8s} by {pod_name} > 10000000",
   "message": "Memory limit changed by more than 10MB for pod {{pod_name.name}}!\n\nThis monitor uses change() on memory LIMITS. But limits are static values defined in the pod spec.\nDoes change() make sense here? Will this monitor ever fire?\n\n@slack-infra",
@@ -78,7 +78,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] K8s Pod Count - Capacity Check",
+  "name": "[Day2] K8s Pod Count",
   "type": "metric alert",
   "query": "min(last_10m):sum:kubernetes.pods.running{kube_cluster_name:learning-week-k8s} < 3",
   "message": "Less than 3 pods running in the cluster!\n\nIs counting total pods really the best way to ensure deployments are healthy?\nWhat about CrashLoopBackOff pods that keep restarting?\n\n@slack-infra",
@@ -104,7 +104,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] CrashLoop CPU Limits - Always Alerting",
+  "name": "[Day2] CrashLoop CPU Limits",
   "type": "metric alert",
   "query": "avg(last_5m):avg:kubernetes.cpu.limits{kube_cluster_name:learning-week-k8s,kube_deployment:crashloop-app} by {pod_name} > 0.01",
   "message": "CrashLoop workload has CPU limits set!\n\nThis monitor has been in Alert nonstop since the pod was created, whether the container is calmly running or crash-looping every 15 seconds.\nWhat is this metric actually measuring, and could it ever land on the other side of that threshold?\n\n@slack-infra",
@@ -122,7 +122,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] K8s CPU Usage - Workload Check",
+  "name": "[Day2] K8s CPU Usage",
   "type": "metric alert",
   "query": "avg(last_10m):avg:container.cpu.usage{kube_cluster_name:learning-week-k8s,!kube_namespace:datadog} by {kube_deployment} > 50000000",
   "message": "CPU usage for deployment {{kube_deployment.name}} is high!\n\nOne workload in this cluster is burning CPU but never produces an alert group here.\nWhich workload is it, and why does this monitor not account for it?\n\n@slack-infra",
@@ -143,7 +143,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] K8s HPA - Saturation Watch",
+  "name": "[Day2] K8s HPA",
   "type": "metric alert",
   "query": "avg(last_5m):avg:kubernetes_state.hpa.current_replicas{kube_cluster_name:learning-week-k8s} by {horizontalpodautoscaler} > 5",
   "message": "HPA {{horizontalpodautoscaler.name}} has more than 5 replicas!\n\nThe threshold is 5 but the HPA maximum is 2.\nThis monitor can never fire on this cluster.\nIs current replica count the right signal for autoscaler saturation?\nWhat would you compare instead?\n\n@slack-infra",
@@ -164,7 +164,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] K8s Node CPU - Scheduling Pressure",
+  "name": "[Day2] K8s Node CPU",
   "type": "metric alert",
   "query": "avg(last_10m):sum:kubernetes.pods.running{kube_cluster_name:learning-week-k8s} by {host} > 50",
   "message": "More than 50 pods on node {{host.name}}!\n\nPod count per node does not prove the node can accept new pods.\nA node at 100% requested CPU will reject new pods even with only 5 pods running.\nWhat metric would actually show the scheduler cannot place new workloads?\n\n@slack-infra",
@@ -186,7 +186,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day2] K8s Deployment - Rollout Stall",
+  "name": "[Day2] K8s Deployment",
   "type": "metric alert",
   "query": "min(last_10m):sum:kubernetes.pods.running{kube_cluster_name:learning-week-k8s,kube_deployment:rollout-stall} < 1",
   "message": "rollout-stall has no running pods!\n\nThis monitor watches running pods and stays green.\nBut the deployment has been rolling for 20 minutes and nothing is ready.\nWhat is the difference between a pod that is Running and a pod that is Available?\nWhich kubernetes_state metric would catch a stalled rollout?\n\n@slack-infra",

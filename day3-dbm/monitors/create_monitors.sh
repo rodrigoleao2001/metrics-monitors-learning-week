@@ -19,7 +19,7 @@ echo ""
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day3] DB Size - Always Alerting",
+  "name": "[Day3] DB Size",
   "type": "metric alert",
   "query": "avg(last_5m):avg:postgresql.database_size{env:learning-week} > 1000000",
   "message": "Database size exceeds 1MB!\n\nThis monitor ALWAYS fires. Is any database ever smaller than 1MB?\nWhat does a static size threshold actually tell you? Is growth the real concern?\n\n@slack-dba",
@@ -38,7 +38,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day3] DB Session Spikes - Connection Load",
+  "name": "[Day3] DB Session Spikes",
   "type": "metric alert",
   "query": "avg(last_10m):avg:postgresql.sessions.count{env:learning-week} > 20",
   "message": "Average session count exceeded 20!\n\nPlease inspect the database before changing this threshold.\n\n@slack-dba",
@@ -57,7 +57,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day3] DB Row Volume - Query Volume",
+  "name": "[Day3] DB Row Volume",
   "type": "metric alert",
   "query": "avg(last_10m):avg:postgresql.rows_returned{env:learning-week} > 700000",
   "message": "Total rows returned is high!\n\nPlease review whether this alert points to an owner.\n\n@slack-dba",
@@ -76,7 +76,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day3] DB Connections - Last Resort Alert",
+  "name": "[Day3] DB Connections",
   "type": "metric alert",
   "query": "avg(last_5m):avg:postgresql.percent_usage_connections{env:learning-week} > 0.90",
   "message": "Too many connections!\n\n@slack-dba",
@@ -95,7 +95,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day3] Orders Reconciliation - No Recent Activity",
+  "name": "[Day3] Orders Reconciliation",
   "type": "metric alert",
   "query": "sum(last_5m):sum:postgres_app.orders_reconciled_total{env:learning-week}.as_count() < 1",
   "message": "No orders reconciled in the last 5 minutes!\n\nThe reconciliation job is running and postgres_app.orders_reconciled_total is still reporting points.\nWhy does this monitor not see them?\n\n@slack-dba",

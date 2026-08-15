@@ -18,7 +18,7 @@ echo ""
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day5-B] Farm Temperature - All Normal",
+  "name": "[Day5-B] Farm Temperature",
   "type": "metric alert",
   "query": "avg(last_5m):avg:iot.sensor.temperature{env:learning-week} > 40",
   "message": "Average farm temperature is above 40C!\n\nBut... are we averaging ALL zones together?\nWhat is the greenhouse reporting individually?\n\n@slack-operations",
@@ -35,7 +35,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day5-B] Sensor Battery - Will Alert Eventually",
+  "name": "[Day5-B] Sensor Battery",
   "type": "metric alert",
   "query": "min(last_10m):min:iot.sensor.battery{env:learning-week} by {sensor_id} < 5",
   "message": "Sensor {{sensor_id.name}} battery is below 5%!\n\nWhen this alert fires, the sensor may already be dead.\nCould we have predicted this earlier?\n\n@slack-iot",
@@ -52,7 +52,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day5-B] Sensor Health - All Reporting",
+  "name": "[Day5-B] Sensor Health",
   "type": "metric alert",
   "query": "sum(last_10m):sum:iot.sensor.readings.count{env:learning-week}.as_count() < 10",
   "message": "Low sensor reading volume!\n\nWe are counting total readings. What if one sensor stopped reporting and the others compensated?\n\n@slack-iot",
@@ -70,7 +70,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day5-B] Field Zone Temperature - Sensor Check",
+  "name": "[Day5-B] Field Zone Temperature",
   "type": "metric alert",
   "query": "avg(last_10m):avg:iot.sensor.temperature{zone:field,env:learning-week} > 40",
   "message": "Average field temperature looks fine!\n\nThe field zone operators are reporting a problem this monitor is not showing. What is this number not telling you?\n\n@slack-iot",

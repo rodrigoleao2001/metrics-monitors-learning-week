@@ -18,7 +18,7 @@ echo ""
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day4] Error Log Alert - Broad Match",
+  "name": "[Day4] Error Log Alert",
   "type": "log alert",
   "query": "logs(\"error\").index(\"*\").rollup(\"count\").last(\"5m\") > 5",
   "message": "Error logs detected!\n\nBut... is this catching actual problems or just noise?\nHow many different services are matching?\n\n@slack-oncall",
@@ -37,7 +37,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day4] Service Error Rate - Group Check",
+  "name": "[Day4] Service Error Rate",
   "type": "log alert",
   "query": "logs(\"status:error\").index(\"*\").rollup(\"count\").by(\"host,service,@region,@level\").last(\"10m\") > 2",
   "message": "Errors detected for {{host.name}} / {{service.name}} / {{@region.name}}!\n\nYou're getting LOTS of these alerts. Is that helpful?\n\n@slack-oncall",
@@ -56,7 +56,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day4] Critical Log Watch - Inbox Flood",
+  "name": "[Day4] Critical Log Watch",
   "type": "log alert",
   "query": "logs(\"status:(error OR critical) service:payment-service\").index(\"*\").rollup(\"count\").last(\"5m\") > 3",
   "message": "Payment service has critical errors!\n\n@slack-oncall @pagerduty-payments @email-team-lead @email-vp-engineering",
@@ -76,7 +76,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day4] Log Volume - Baseline Check",
+  "name": "[Day4] Log Volume",
   "type": "log alert",
   "query": "logs(\"*\").index(\"*\").rollup(\"count\").last(\"15m\") > 200",
   "message": "High log volume detected!\n\nIs ALL log volume a problem? Or just certain types?\nShould we count DEBUG logs the same as ERROR logs?\n\n@slack-platform",
@@ -96,7 +96,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day4] Critical Error Watch - Evaluation Check",
+  "name": "[Day4] Critical Error Watch",
   "type": "log alert",
   "query": "logs(\"status:critical\").index(\"*\").rollup(\"count\").last(\"10m\") > 2",
   "message": "This monitor has never alerted.\n\nLogs Search still returns critical events for this environment.\nWhich of those two facts is wrong, and how would you prove it?\n\n@slack-oncall",
@@ -116,7 +116,7 @@ create_monitor_from_file "$P"
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day4] Payment Retry Storm - Notification Check",
+  "name": "[Day4] Payment Retry Storm",
   "type": "log alert",
   "query": "logs(\"status:error service:payment-service @error_type:TimeoutError\").index(\"*\").rollup(\"count\").last(\"10m\") > 20",
   "message": "Payment gateway timeout retries detected!\n\nThis monitor correctly finds the problem. But who is actually being paged right now?\nWould the infra on-call know what to do with a payment gateway timeout?\n\n@slack-infra",

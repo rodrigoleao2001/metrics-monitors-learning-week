@@ -91,7 +91,7 @@ The field zone monitor looks fine most of the time, but the operators keep repor
 
 Starting points:
 
-1. Open `[Day5-B] Field Zone Temperature - Sensor Check`.
+1. Open `[Day5-B] Field Zone Temperature`.
 2. Read the query and write down exactly which sensors it covers and what it does with their readings.
 3. Plot `iot.sensor.temperature{zone:field}` in Metrics Explorer and break it down until you can see the sensors apart from each other.
 4. Decide what the number the monitor evaluates is not telling you about that zone.
