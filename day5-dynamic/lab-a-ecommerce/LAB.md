@@ -53,69 +53,42 @@ chmod +x monitors/create_monitors.sh
 ./monitors/create_monitors.sh
 ```
 
+## Format: One Shared Org, One Slack Channel, One Complete Ticket
+
+This lab runs as a single scenario for the whole group, not a set of small blind cards.
+
+- Only **one** member of the group runs the environment (`docker compose up` above), in their own org. Everyone else connects through that same org and the shared Slack channel, they do not each run their own copy.
+- Split into **Customer** and **Support**. The Customer side gets the complete ticket text below, in full, right away, including a link to the specific broken monitor and a documentation link. There is no vague-first-then-reveal step here, the whole complaint is posted to the shared Slack channel at once, exactly like a real ticket.
+- Support receives that same complete message in Slack and works the case from there: asking follow-up questions back in the channel, checking the real data in the shared org, testing hypotheses, and proposing a fix. Support should not just read the query and announce the answer, the point is to work it the way a real ticket gets worked, evidence first.
+- There is exactly **one** monitor behind this whole scenario, with one complete, combined, real-world-shaped problem, not several small separate ones.
+
 ## Customer Role
 
-The facilitator will give you a scenario card. Write a vague support ticket from that card.
+Post this complete message into the shared Slack channel, filling in the monitor link from your shared org:
 
-Do not reveal the region, payment method, device, category, or metric type immediately. Reveal details only when the support engineer asks precise questions.
+> Hey team, CS keeps escalating payment failure complaints from customers, pretty steady all week across several regions and payment methods, but **[Day5-A] Payment Failure Watch** has barely moved the whole time. Monitor: `[PASTE THE MONITOR URL FROM YOUR SHARED ORG HERE]`. We think it might be about how we are tracking these failures, here is the docs page we were looking at: https://docs.datadoghq.com/metrics/types/. Can someone take a look?
 
-## Support Engineer Role
+## Support Role
 
-Receive the ticket and:
+Receive that complete ticket in Slack and:
 
-1. Clarify scope, timeframe, impact, and dimensions.
-2. Investigate with Metrics Explorer, dashboards, and existing monitors.
-3. Identify what the current monitor misses.
-4. Propose two monitor or metric fixes.
-5. Explain the chosen fix in customer language.
+1. Ask clarifying questions back in the channel: how often, which regions or payment methods, roughly how many real CS tickets versus what the monitor shows.
+2. Investigate with Metrics Explorer, the monitor's exact query, and the metric's real DogStatsD submission type.
+3. Identify everything the current monitor gets wrong, there is more than one thing.
+4. Propose a fix, including anything that needs to change at the metric-submission level, not just the query.
+5. Explain the fix in customer language.
 
-Do not read the customer's scenario card.
+Before proposing a fix, deliver:
 
-Before changing any monitor, deliver:
-
-- what the current monitor misses
-- one rejected alternative hypothesis
-- two possible fixes
-- why you chose one fix
-- the final customer explanation
-
-## Mission 1 - Refunds Total: Consistency Check
-
-Finance says the refund numbers on the monitor do not match what they see on the business dashboard, even though the application always emits the same four values in every batch.
-
-Starting points:
-
-1. Open the monitor named `[Day5-A] Refunds Total`.
-2. Compare `ecommerce.refunds_varied.gauge_demo`, `ecommerce.refunds_varied.count_demo`, and `ecommerce.refunds_varied.histogram_demo` in Metrics Explorer for the same time window.
-3. Confirm that the application sends the same four values, 10, 50, 200, and 500, through all three submission types in every batch.
-4. Decide which submission type and statistic actually answers the business question Finance is asking.
-
-Before changing the monitor, deliver:
-
-- the current monitor flaw in one sentence
+- everything the current monitor gets wrong, in your own words
 - one rejected alternative hypothesis
 - two possible fixes and the trade-off between them
-- the evidence that made you choose the final fix
-- a customer-ready explanation
+- the evidence that made you choose one
+- the final customer explanation
 
-Metrics to compare:
+## Role Swap
 
-| Metric | DogStatsD type | Investigation question |
-|--------|----------------|------------------------|
-| `ecommerce.refunds_varied.gauge_demo` | gauge | Which value survives the flush? |
-| `ecommerce.refunds_varied.count_demo` | count | Does the Agent sum events or keep the last value? |
-| `ecommerce.refunds_varied.histogram_demo.avg` | histogram | Which statistic describes the center? |
-| `ecommerce.refunds_varied.histogram_demo.max` | histogram | Which statistic preserves the worst value? |
-| `ecommerce.refunds_varied.histogram_demo.count` | histogram | How do you prove how many samples entered the flush? |
-
-Stretch challenge:
-
-- Design a single dashboard widget that shows the real refund volume without anyone needing to know DogStatsD internals. Defend why gauge, count, or histogram is the right submission type for this specific business question.
-
-Expert defense:
-
-- Explain why the wrong submission type can make a monitor look correct while the business sees failures.
-- Explain how you would validate the fix after changing the application code.
+After this round, swap: whoever played Support here plays Customer for Lab B, and vice versa, so everyone works both sides once across the two labs.
 
 ## Cleanup
 

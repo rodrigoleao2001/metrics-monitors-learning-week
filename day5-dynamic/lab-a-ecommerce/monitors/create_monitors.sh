@@ -15,85 +15,30 @@ echo ""
 echo "=== Day 5 — Lab A (E-commerce): Creating Lab Monitors ==="
 echo ""
 
+# Monitor — the single big role-play scenario for Lab A. Four combined,
+# verified-live flaws in one monitor, not four separate ones:
+#   1. Wrong metric type: ecommerce.failed_payments is submitted as a GAUGE
+#      (statsd.gauge(..., 1, ...)), so it structurally cannot count discrete
+#      events. Verified live: a plain avg reads a flat 1.00 no matter how many
+#      failures actually happened in the window.
+#   2. Wrong tags: no group-by region/payment_method, so even the undercounted
+#      signal is blended across the whole platform.
+#   3. Wrong aggregation: avg instead of sum compounds the undercount further.
+#   4. Broken config: the threshold (50) is sized for a properly-counted
+#      scale that this metric, averaged, can never reach. Verified live over a
+#      30 min window: real order volume was 252 with the code's flat 10%
+#      failure chance per order (~25 real failures expected), while the plain
+#      avg query read 1.00 and an ungrouped sum read only 4-10.
 P=$(new_payload)
 cat > "$P" <<'JSON'
 {
-  "name": "[Day5-A] Payment Latency",
+  "name": "[Day5-A] Payment Failure Watch",
   "type": "metric alert",
-  "query": "avg(last_5m):avg:ecommerce.payment.latency.avg{env:learning-week} > 5",
-  "message": "Slow payment detected!\n\nBut which method? Which region? The global view still looks normal...\n\n@slack-payments",
-  "tags": ["learning-week:day5-ecommerce"],
-  "options": {
-    "thresholds": {"critical": 5, "warning": 3},
-    "notify_no_data": false,
-    "renotify_interval": 0
-  }
-}
-JSON
-create_monitor_from_file "$P"
-
-P=$(new_payload)
-cat > "$P" <<'JSON'
-{
-  "name": "[Day5-A] Order Volume",
-  "type": "metric alert",
-  "query": "sum(last_10m):sum:ecommerce.orders.count{env:learning-week}.as_count() < 5",
-  "message": "Order volume dropped!\n\nBut wait... the total still looks OK. Did one specific region or payment method stop?\n\n@slack-business",
-  "tags": ["learning-week:day5-ecommerce"],
-  "options": {
-    "thresholds": {"critical": 5, "warning": 15},
-    "notify_no_data": true,
-    "no_data_timeframe": 10,
-    "renotify_interval": 0
-  }
-}
-JSON
-create_monitor_from_file "$P"
-
-P=$(new_payload)
-cat > "$P" <<'JSON'
-{
-  "name": "[Day5-A] Cart Abandonment",
-  "type": "metric alert",
-  "query": "avg(last_10m):avg:ecommerce.cart.abandonment{env:learning-week} by {region} > 70",
-  "message": "High cart abandonment in region {{region.name}}!\n\nThe threshold looks high... and are we mixing all devices together?\n\n@slack-product",
-  "tags": ["learning-week:day5-ecommerce"],
-  "options": {
-    "thresholds": {"critical": 70, "warning": 50},
-    "notify_no_data": false,
-    "renotify_interval": 0
-  }
-}
-JSON
-create_monitor_from_file "$P"
-
-P=$(new_payload)
-cat > "$P" <<'JSON'
-{
-  "name": "[Day5-A] Failed Payments",
-  "type": "metric alert",
-  "query": "sum(last_5m):sum:ecommerce.failed_payments{env:learning-week} > 50",
-  "message": "Failed payments detected!\n\nBut the numbers seem very low... We know roughly 10% of payment attempts fail, but this monitor barely alerts.\nCompare with ecommerce.orders.count and check whether the ratio adds up.\n\n@slack-payments",
+  "query": "avg(last_10m):avg:ecommerce.failed_payments{env:learning-week} > 50",
+  "message": "Payment failure volume looks normal.\n\nCS keeps escalating failed-payment complaints and this monitor has barely moved all week.\n\n@slack-payments",
   "tags": ["learning-week:day5-ecommerce"],
   "options": {
     "thresholds": {"critical": 50, "warning": 20},
-    "notify_no_data": false,
-    "renotify_interval": 0
-  }
-}
-JSON
-create_monitor_from_file "$P"
-
-P=$(new_payload)
-cat > "$P" <<'JSON'
-{
-  "name": "[Day5-A] Refunds Total",
-  "type": "metric alert",
-  "query": "avg(last_10m):avg:ecommerce.refunds_varied.gauge_demo{env:learning-week} > 300",
-  "message": "Refund total looks high!\n\nBut Finance says this number does not match the refund volume on their dashboard. Which one is right?\n\n@slack-payments",
-  "tags": ["learning-week:day5-ecommerce"],
-  "options": {
-    "thresholds": {"critical": 300, "warning": 150},
     "notify_no_data": false,
     "renotify_interval": 0
   }

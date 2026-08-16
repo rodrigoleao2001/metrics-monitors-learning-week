@@ -1472,7 +1472,7 @@ const DAY1_MISSIONS = [
         '{service:flask-store,env:learning-week,resource_name:get_/checkout} > 1. That is two ' +
         'changes together, not one: avg becomes p95, and the query gains a ' +
         'resource_name:get_/checkout filter.',
-        'Both changes turned out to be necessary, verified live: switching only the statistic ' +
+        'Both changes were necessary: switching only the statistic ' +
         'to p95 while leaving the query scoped to the whole service still read OK, because the ' +
         'checkout endpoint’s slowness was diluted by six other, faster endpoints sharing the ' +
         'same service. p95 across the whole service measured 0.26 seconds at the same moment ' +
@@ -1546,7 +1546,7 @@ const DAY1_MISSIONS = [
         'env:learning-week}.rollup(max, 60) > 2. That is two changes together: the rollup ' +
         'becomes .rollup(max, 60) instead of .rollup(avg, 600), and the monitor’s own time ' +
         'aggregator, the word right before the parentheses, becomes max instead of avg.',
-        'Both changes turned out to be necessary, verified live: switching only the rollup to ' +
+        'Both changes were necessary: switching only the rollup to ' +
         'max(60) while leaving the monitor’s own aggregator as avg(last_15m) still read OK, ' +
         'because the rollup correctly preserved each short spike as its own 60 second point, ' +
         'real values ranged from a 0.26 to 0.29 baseline up to spikes of 1.02 to 2.61, but the ' +
@@ -1605,7 +1605,7 @@ const DAY1_MISSIONS = [
         'Edit the monitor to scope directly to checkout’s own commitment: sum(last_10m):sum:' +
         'trace.flask.request.errors{service:flask-store,env:learning-week,' +
         'resource_name:get_/checkout}.as_count() > 5.',
-        'Why 5, not the original 100, verified live: checkout carried 510 hits in the last 10 ' +
+        'Why 5, not the original 100: checkout carried 510 hits in the last 10 ' +
         'minutes with 20 errors, a 3.9% failure rate, already breaching the 1% commitment. 1% ' +
         'of 510 hits is about 5.1, so a threshold of 5 catches a genuine breach of that ' +
         'specific commitment. The original threshold of 100 was sized for the whole service’s ' +
@@ -1672,7 +1672,7 @@ const DAY1_MISSIONS = [
         'Explorer before trusting the threshold in production, and separately confirm the ' +
         'monitor’s no-data behavior is set to something sane rather than treating a genuine ' +
         'outage-level silence as a non-event.',
-        'Verified live: this exact query creates successfully as a valid anomaly monitor and ' +
+        'This exact query creates successfully as a valid anomaly monitor and ' +
         'evaluates cleanly to OK against real current traffic, with no false positive. This lab ' +
         'environment has only been running for a few hours at a time, not continuously across ' +
         'real days and nights, so the direction=\'below\' path, catching traffic that is ' +
@@ -1796,7 +1796,7 @@ const DAY1_MISSIONS = [
       'being affected right now, both pages happen constantly for reasons that turn out to be ' +
       'harmless on their own. On-call has asked for one signal that only fires when both ' +
       'conditions are genuinely true at the same time, together. Two monitors already exist for ' +
-      'exactly this purpose, built and verified live so this mission is entirely about the ' +
+      'exactly this purpose, so this mission is entirely about the ' +
       'combining logic, not about designing their queries: [Day1] Checkout Latency - Composite ' +
       'Input and [Day1] Checkout Error Rate. Each already sits comfortably at ' +
       'OK on its own, checkout’s real latency and error rate are noisy day to day, and each of ' +
@@ -1831,7 +1831,7 @@ const DAY1_MISSIONS = [
         'Latency - Composite Input as A and [Day1] Checkout Error Rate as B, ' +
         'and set the formula to A && B. Composite monitors are built from existing monitor names ' +
         'joined by logic, not a new query of their own, so no new metric query is needed here.',
-        'Why the two inputs already work, verified live: checkout’s real p95 latency runs ' +
+        'Why the two inputs already work: checkout’s real p95 latency runs ' +
         'chronically around 4.3 to 5.3 seconds and its real error rate runs chronically around ' +
         '2.8% to 5.7%, both are noisy every day, not just during some specific known event. The ' +
         'latency input’s threshold, 6.5s, and the error rate input’s threshold, 15%, both sit ' +
@@ -1902,7 +1902,7 @@ const DAY1_MISSIONS = [
         'rate alert measures how fast the budget is being spent right now, so it can catch a ' +
         'bad hour and page while there is still budget left to protect, days before the SLO ' +
         'itself would ever turn red.',
-        'Verified live: checkout carried 3,355 hits and 169 errors in one real hour, a clean, ' +
+        'Checkout carried 3,355 hits and 169 errors in one real hour, a clean, ' +
         'well-formed 94.96% SLI for that hour, confirming the total and bad-event queries ' +
         'produce sane numbers to build an actual SLO from, not a hypothetical.'
       ],
@@ -2057,7 +2057,7 @@ const DAY2_MISSIONS = [
         'Why this works: monotonic_diff() is built specifically for counters that only ever go ' +
         'up. It reports the delta between consecutive points and discards any negative ' +
         'difference, which should never happen on a real counter. That turns "total restarts ' +
-        'ever" into "restarts that happened just now." Verified live against two hours of real ' +
+        'ever" into "restarts that happened just now." Over two hours of real ' +
         'data: actively crash-looping pods showed at least one restart in 97 to 98 percent of ' +
         'rolling 10 minute windows, while stable pods showed zero restarts in 100 percent of ' +
         'them, so this threshold cleanly separates the two without any false positives.',
@@ -2181,7 +2181,7 @@ const DAY2_MISSIONS = [
         'arithmetic. Subtracting available from desired, per deployment, produces zero when a ' +
         'deployment has everything it needs and a positive number the moment any deployment ' +
         'falls short, which a cluster-wide pod count could never express.',
-        'Verified live against this exact cluster: this query alerted on more than just the ' +
+        'This query alerted on more than just the ' +
         'obviously broken deployment, it also caught memory-hog and cpu-stress, both confirmed ' +
         'via kubectl to be genuinely stuck in CrashLoopBackOff with zero ready replicas at the ' +
         'time. That is the fix working correctly, not noise, the original cluster-wide monitor ' +
@@ -2286,7 +2286,7 @@ const DAY2_MISSIONS = [
         'kube_deployment:N/A bucket that names no one. Every pod does get a kube_replica_set ' +
         'tag regardless of what owns it one layer further up, so grouping by that tag instead ' +
         'catches this workload without assuming every workload is owned by a Deployment.',
-        'Verified live: this exact query isolated kube_replica_set:payments-worker into its own ' +
+        'This exact query isolated kube_replica_set:payments-worker into its own ' +
         'Alert group and nothing else, no false positives on any other workload. Measured real ' +
         'values for reference: by deployment, the N/A bucket sits around 41.7 million nanocores ' +
         'in Warn, by pod the two payments-worker pods are clearly visible around 80 to 81 ' +
@@ -2341,7 +2341,7 @@ const DAY2_MISSIONS = [
         'it is structurally allowed to have, regardless of what that specific autoscaler’s ' +
         'ceiling actually is. The original monitor’s threshold of 5 could never fire against ' +
         'this cluster’s real HPA, whose configured max is 2.',
-        'Verified live: with the HPA not currently saturated, this query correctly reported OK, ' +
+        'With the HPA not currently saturated, this query correctly reported OK, ' +
         'confirming it does not false-positive under normal headroom. The Alert side, an HPA ' +
         'genuinely pinned at its maximum under real load, was not exercised live in this ' +
         'session, so validate that path by driving enough load to actually saturate the ' +
@@ -2396,7 +2396,7 @@ const DAY2_MISSIONS = [
         'of large pods can saturate a node exactly as completely as many small ones, so a raw ' +
         'pod count can never distinguish the two, while this ratio directly reflects what the ' +
         'scheduler actually checks.',
-        'Verified live: with this cluster’s current low request utilization, the query correctly ' +
+        'With this cluster’s current low request utilization, the query correctly ' +
         'reported OK on both nodes, confirming no false positive at normal load. The Alert side ' +
         'was not exercised live, driving enough CPU requests to actually saturate a node was ' +
         'out of scope for this check, so validate that path before relying on the 90 percent ' +
@@ -2451,7 +2451,7 @@ const DAY2_MISSIONS = [
         'the two directly exposes exactly that gap, updated without available, which a raw ' +
         'running-pod count cannot see because it never distinguishes a pod that started from a ' +
         'pod that is actually serving traffic.',
-        'Verified live against this exact cluster: this query reported Alert immediately on ' +
+        'This query reported Alert immediately on ' +
         'first evaluation, not eventually, because rollout-stall already sat at 2 updated ' +
         'replicas and 0 available replicas at the moment it was checked, exactly the stalled ' +
         'state this mission describes.'
@@ -2498,10 +2498,10 @@ const DAY3_MISSIONS = [
       ],
       solution: [
         'Edit the monitor to compare growth over a window sized to how long this lab actually ' +
-        'runs continuously, verified live: change(avg(last_15m),last_1h):avg:' +
+        'runs continuously: change(avg(last_15m),last_1h):avg:' +
         'postgresql.database_size{env:learning-week} > 1000000.',
         'A day-over-day comparison such as change(avg(last_1h),last_1d) looks more intuitive ' +
-        'but was verified live to misfire here, producing a false Alert, because this lab ' +
+        'but misfires here, producing a false Alert, because this lab ' +
         'environment does not run continuously for 24 hours, so a comparison against exactly ' +
         'one day ago has no reliable baseline. Sizing the comparison window to a realistic ' +
         'single-session length instead of a calendar day avoided that false positive.',
@@ -2525,8 +2525,8 @@ const DAY3_MISSIONS = [
       'hide a burst a database administrator would call a real spike, and fix the monitor so ' +
       'it catches the burst instead of smoothing it away. As an example of the target ' +
       'behavior: a database that briefly spikes to dozens of concurrent sessions for a minute ' +
-      'or two, then settles back to single digits, should trigger this monitor, verified live ' +
-      'to currently stay comfortably under threshold through exactly that kind of spike.',
+      'or two, then settles back to single digits, should trigger this monitor. Right now, the ' +
+      'averaged query stays comfortably under threshold through exactly that kind of spike.',
     tiers: {
       expert: [
         'The choice of aggregator applied to a raw metric changes what the returned points ' +
@@ -2565,7 +2565,7 @@ const DAY3_MISSIONS = [
       solution: [
         'Edit the monitor and change both aggregators to max: max(last_10m):max:' +
         'postgresql.sessions.count{env:learning-week} > 20.',
-        'Why this works, verified live against two hours of real traffic: avg: on this metric ' +
+        'Why this works: avg: on this metric ' +
         'returned values between 2 and 18.5 over rolling 10 minute windows, never crossing 20, ' +
         'while max: on the exact same underlying data returned values up to 37 in the same ' +
         'windows. The burst is real, avg simply never lets the monitor see it.',
@@ -2616,7 +2616,7 @@ const DAY3_MISSIONS = [
         'Edit the monitor to scope the query to the application database specifically: ' +
         'avg(last_10m):avg:postgresql.rows_returned{env:learning-week,db:learning_week} > ' +
         '700000.',
-        'Why this works, verified live: this instance reports two distinct series for this ' +
+        'Why this works: this instance reports two distinct series for this ' +
         'metric, db:learning_week, the real application database, ranging roughly 62,000 to ' +
         '93,000 in recent history, and db:postgres, Postgres’s own system database, ranging ' +
         'from 0 to about 1,200. Scoping to the application database removes unrelated system ' +
@@ -2670,7 +2670,7 @@ const DAY3_MISSIONS = [
       solution: [
         'Edit the monitor to watch connections by state rather than overall usage percentage: ' +
         'avg(last_5m):avg:postgresql.connections{env:learning-week} by {state} > 5.',
-        'Why this works, verified live: grouped by state, this instance’s idle-in-transaction ' +
+        'Why this works: grouped by state, this instance’s idle-in-transaction ' +
         'group peaked at 30 while active stayed pinned at 1 and idle stayed near 1.3, all while ' +
         'percent_usage_connections sat between 5 and 35 percent, nowhere near the original 90 ' +
         'percent threshold. Watching by state catches the dangerous pile-up directly, long ' +
@@ -2721,7 +2721,7 @@ const DAY3_MISSIONS = [
         'the measured lag, for example 780 seconds against a known roughly 720 second delay, ' +
         'keeping the query itself unchanged: sum(last_5m):sum:' +
         'postgres_app.orders_reconciled_total{env:learning-week}.as_count() < 1.',
-        'Why this works, verified live: with evaluation_delay set past the lag, the monitor ' +
+        'Why this works: with evaluation_delay set past the lag, the monitor ' +
         'correctly read OK on live data, confirming reconciliation was genuinely running the ' +
         'whole time. Evaluation delay shifts the window the monitor looks at backward by that ' +
         'many seconds, so it only ever evaluates a stretch of time old enough for the data to ' +
@@ -2774,7 +2774,7 @@ const DAY3_MISSIONS = [
       solution: [
         'Build a monitor grouped by connection state, the same fix as Mission 4: avg(last_5m):' +
         'avg:postgresql.connections{env:learning-week} by {state} > 5.',
-        'Why this works, verified live: grouping by state isolated idle-in-transaction from ' +
+        'Why this works: grouping by state isolated idle-in-transaction from ' +
         'active and idle, so a genuine pile-up, peaking at 30, showed up as its own alerting ' +
         'group at a moment when active and idle never left 1 to 1.3, and overall connection ' +
         'usage sat at only 5 to 35 percent, nowhere near the 90 percent threshold of the ' +
@@ -2851,7 +2851,7 @@ const DAY3_MISSIONS = [
       'to prove both numbers are internally correct, name the exact arithmetic difference that ' +
       'produces two different answers from the same underlying data, and fix the monitor to ' +
       'answer the business question that actually matters. As an example of the mechanism at ' +
-      'work, verified live in this environment: in one real five-minute window, summing all ' +
+      'work: in one real five-minute window, summing all ' +
       'errors and all queries across the whole window and dividing once produced roughly a 1% ' +
       'error rate, while averaging each minute’s own error percentage and then averaging those ' +
       'five percentages together produced a notably higher rate, from the exact same ' +
@@ -2886,7 +2886,7 @@ const DAY3_MISSIONS = [
         'matching the fix already described directly in the monitor’s own message: ' +
         'avg(last_5m):sum:pg_app.queries.errors{env:learning-week}.as_count() / ' +
         'sum:pg_app.queries.total{env:learning-week}.as_count().',
-        'Why this works, verified live with real numbers from this environment: in one ' +
+        'Why this works, with real numbers from this environment: in one ' +
         '5-minute window, summing errors and summing totals and dividing once gave about 1%, ' +
         'while averaging the five individual per-minute ratios gave about 1.6%, a real, ' +
         'live-confirmed divergence in the same direction the mission describes, from the exact ' +
@@ -2912,9 +2912,9 @@ const DAY4_MISSIONS = [
     story: 'The on-call channel treats <b>[Day4] Error Log Alert</b> as ' +
       'background noise at this point, it fires constantly and everyone has learned to ignore ' +
       'it, exactly how a real incident gets missed. The monitor searches for the bare word ' +
-      'error anywhere in the log stream. Verified live against this environment’s own ' +
-      'traffic: that search returned zero matches for the application’s own real errors, ' +
-      'payment gateway timeouts and authentication failures, because neither log message ever ' +
+      'error anywhere in the log stream. That search returned zero matches for the ' +
+      'application’s own real errors, payment gateway timeouts and authentication failures, ' +
+      'because neither log message ever ' +
       'contains the literal word error, the failure is only recorded in a structured status ' +
       'field. In the same live check, the identical search matched nginx connection-refused ' +
       'lines and Postgres syntax errors, neither of which has anything to do with the services ' +
@@ -2951,7 +2951,7 @@ const DAY4_MISSIONS = [
         'lab actually owns: logs("status:error service:(auth-service OR payment-service OR ' +
         'order-service OR notification-service OR inventory-service)").index("*")' +
         '.rollup("count").last("5m") > 5.',
-        'Why this works, verified live: the corrected query matched the application’s genuine ' +
+        'Why this works: the corrected query matched the application’s genuine ' +
         'errors immediately. The original bare "error" search returned zero matches for ' +
         'service:payment-service or service:auth-service in the same window, while matching ' +
         'four unrelated services elsewhere in the account whose log lines merely happened to ' +
@@ -2972,7 +2972,7 @@ const DAY4_MISSIONS = [
     story: '<b>[Day4] Service Error Rate</b> pages on-call so often, for so many ' +
       'different alert groups, that people have started muting it during busy periods, ' +
       'exactly the failure mode a good monitor should never create. It groups by host, ' +
-      'service, region, and log level all at once, verified live to produce dozens of ' +
+      'service, region, and log level all at once, producing dozens of ' +
       'distinct alert groups within a single evaluation, most of which nobody could act on ' +
       'individually. Your job is to figure out who could actually own and act on this alert, ' +
       'and reduce the grouping to match that person’s real scope of responsibility. As an ' +
@@ -3006,7 +3006,7 @@ const DAY4_MISSIONS = [
         'logs("status:error service:(auth-service OR payment-service OR order-service OR ' +
         'notification-service OR inventory-service)").index("*").rollup("count").by("service")' +
         '.last("10m") > 10.',
-        'Why this works, verified live: the original four-dimension grouping produced numerous ' +
+        'Why this works: the original four-dimension grouping produced numerous ' +
         'distinct alert groups in a single check, including groups from services this lab does ' +
         'not even own. Grouping by service alone, scoped to this lab’s own services, cleanly ' +
         'reduced that to exactly the services genuinely having a problem at that moment, each ' +
@@ -3080,7 +3080,7 @@ const DAY4_MISSIONS = [
     story: '<b>[Day4] Log Volume</b> pages the platform team whenever total ' +
       'log volume crosses 200 lines in 15 minutes, and it fires often, but almost every time, ' +
       'the actual cause turns out to be a burst of routine debug output, not a real problem. ' +
-      'Verified live in this environment, debug-level logs alone accounted for nearly half of ' +
+      'In this environment, debug-level logs alone accounted for nearly half of ' +
       'all log volume in a 15-minute sample. Your job is to figure out why counting every log ' +
       'line the same way, regardless of what it actually says, produces an alert that is loud ' +
       'but rarely meaningful, and to redesign it around something that reflects real impact. ' +
@@ -3170,7 +3170,7 @@ const DAY4_MISSIONS = [
         'Edit the monitor to make the threshold reachable at the real event rate, widening the ' +
         'window and lowering the count together: logs("status:critical").index("*")' +
         '.rollup("count").last("1h") > 0.',
-        'Why this works, verified live: with the window widened to an hour and the threshold ' +
+        'Why this works: with the window widened to an hour and the threshold ' +
         'lowered to alert on any event at all, the monitor correctly moved to Alert reflecting ' +
         'real critical activity, something the original 10-minute, more-than-2 configuration ' +
         'could never do given a real event interval of 25 to 50 minutes.',
@@ -3186,7 +3186,7 @@ const DAY4_MISSIONS = [
     title: 'Mission 6 - Payment Retry Storm: Notification Check',
     story: '<b>[Day4] Payment Retry Storm</b> does exactly what a ' +
       'monitor should: it correctly identifies a real, active payment gateway timeout storm, ' +
-      'verified live firing with well over a hundred matching timeout logs in a single ' +
+      'firing with well over a hundred matching timeout logs in a single ' +
       '10-minute window, far past its threshold. And yet the incident still drags on longer ' +
       'than it should, because the page lands with the infrastructure on-call, not the ' +
       'payments team, and infra has no context for what a payment gateway timeout even means ' +
@@ -3220,7 +3220,7 @@ const DAY4_MISSIONS = [
         'mention if payment gateway issues sometimes need infrastructure’s help.',
         'Why this works: the query itself, logs("status:error service:payment-service ' +
         '@error_type:TimeoutError").index("*").rollup("count").last("10m") > 20, was already ' +
-        'verified live to correctly detect a real, active retry storm well past its threshold. ' +
+        'correctly detects a real, active retry storm well past its threshold. ' +
         'The only defect is routing, so the fix is entirely in the message and notification ' +
         'targets, not the query.',
         'Why this matters more than it might seem: a correct alert sent to the wrong team can ' +
@@ -3279,7 +3279,7 @@ const DAY4_MISSIONS = [
         'Alert state while no matching downtime is currently active would catch the case where ' +
         'someone forgot to schedule this week’s downtime, or where the job ran outside its ' +
         'expected window.',
-        'Verified live end to end: scheduling a downtime scoped to a single monitor_id, then ' +
+        'End to end, scheduling a downtime scoped to a single monitor_id, then ' +
         'reading that same monitor back to confirm the downtime was attached, then cancelling ' +
         'it, all worked exactly as documented, with the downtime object correctly showing ' +
         'canceled and disabled immediately after.'
@@ -3291,7 +3291,7 @@ const DAY4_MISSIONS = [
   {
     title: 'Mission 8 - Exclusion Filter vs Monitor Coverage',
     story: 'Debug-level logs make up a substantial share of everything this environment ' +
-      'ingests, verified live at close to half the total volume in a 15-minute sample, and ' +
+      'ingests, close to half the total volume in a 15-minute sample, and ' +
       'none of the Day 4 monitors depend on debug logs to detect anything. Excluding that ' +
       'volume before it gets indexed would meaningfully cut cost. The risk is cutting too ' +
       'broadly and losing the one time debug output was actually the only evidence of what ' +
@@ -3341,7 +3341,7 @@ const DAY4_MISSIONS = [
         'cheaper storage, so the volume never gets indexed or billed at the indexing rate, but ' +
         'a genuine investigation can still rehydrate it if debug context is ever needed after ' +
         'the fact.',
-        'Verified live: this account runs a single shared log index, not one per lab, so an ' +
+        'This account runs a single shared log index, not one per lab, so an ' +
         'exclusion filter here affects every day’s logs at once, which is exactly why the ' +
         'scope has to be this narrow. Adding this exact filter and reading the index back ' +
         'confirmed it applied correctly, and removing it again confirmed the index returned to ' +
@@ -3358,7 +3358,7 @@ const DAY4_MISSIONS = [
       'landing as status:info regardless of what actually happened, including genuine ' +
       'connection failures. No monitor built on status:error would ever see them again, and ' +
       'nobody would find out except by noticing, by hand, that the numbers look stuck. In this ' +
-      'environment right now, the pipeline is working correctly, verified live: nginx-proxy’s ' +
+      'environment right now, the pipeline is working correctly: nginx-proxy’s ' +
       'logs currently show a real mix of info and error depending on what actually happened, ' +
       'which is exactly the healthy baseline you would compare a broken pipeline against. Your ' +
       'job is to understand that baseline well enough to recognize the moment it stops ' +
@@ -3408,7 +3408,7 @@ const DAY4_MISSIONS = [
         'independent signal, such as total log volume from the service staying normal while ' +
         'error-specific volume alone goes quiet, or a scheduled manual spot-check of the raw ' +
         'message field against what status claims.',
-        'Verified live in two ways: the actual Grok pipeline for this service is a real, ' +
+        'Two things confirm this: the actual Grok pipeline for this service is a real, ' +
         'standard Nginx access and error log parser, confirming the mechanism this mission is ' +
         'about genuinely exists here, and this exact floor-style monitor query was created and ' +
         'evaluated to OK against live traffic, correctly staying quiet because error-level ' +
@@ -3465,9 +3465,9 @@ const DAY4_MISSIONS = [
         'lines, verified directly against its log generator, its only payment-specific log ' +
         'text is "Payment gateway timeout" during a retry storm. Treat the mission’s two named ' +
         'log lines as illustrative of the pattern, and build the same SLO using this service’s ' +
-        'real total and status:error volume instead, which is what was actually verified live ' +
-        'here: both log-based metrics were created, and within a few minutes both were ' +
-        'populated with real counts, confirming the mechanism works end to end on this data.',
+        'real total and status:error volume instead: both log-based metrics were created, and ' +
+        'within a few minutes both were populated with real counts, confirming the mechanism ' +
+        'works end to end on this data.',
         'Why the risk is real and not hypothetical: because both metrics are derived entirely ' +
         'from log volume, any event that reduces logging itself, without necessarily reducing ' +
         'real traffic or real failures, changes what the SLO sees. A service that silently ' +
@@ -3496,634 +3496,174 @@ const DAY4_MISSIONS = [
    a hint would just let someone skip the role play. */
 const DAY5A_MISSIONS = [
   {
-    title: 'Mission 1 - Refunds Total: Consistency Check',
-    story: 'Finance says the refund numbers on <b>[Day5-A] Refunds Total - Consistency ' +
-      'Check</b> do not match what they see on the business dashboard, even though the ' +
-      'application always emits the same four values, 10, 50, 200, and 500, through three ' +
-      'different DogStatsD submission types in every batch. Your job is to figure out why ' +
-      'three metrics built from the exact same four numbers can show three completely ' +
-      'different values, and pick the one that actually answers Finance’s question. As an ' +
-      'example of the target behavior: whichever metric this monitor ends up watching should ' +
-      'move by a predictable, provable amount every time a batch of refunds is processed, not ' +
-      'stay flat or drift for reasons that have nothing to do with real refund volume.',
+    title: 'Scenario A - Payment Failure Watch: The Monitor CS Doesn’t Trust',
+    story: 'This is the one big role-play case for this lab. Half the room plays the customer, ' +
+      'half plays support, then you swap roles for Lab B. The customer side gets the complete ' +
+      'ticket below, in full, up front, exactly as CS would actually write it, including the ' +
+      'monitor link and the doc link support might want, and posts the whole thing into your ' +
+      'shared Slack channel at once. This is not a slow-drip mystery: support gets the entire ' +
+      'complaint immediately and works it from there by asking real, testable questions back in ' +
+      'the same channel and checking the actual data in the shared org. There is exactly one ' +
+      'broken monitor behind this whole case, <b>[Day5-A] Payment Failure Watch</b>, and it has ' +
+      'a complete, real-world-shaped problem: the metric it watches, the tags it does not use, ' +
+      'the way it aggregates, and its own alert threshold are all part of the same failure, not ' +
+      'four separate ones. As an example of the target outcome: by the end, support should be ' +
+      'able to say exactly why this monitor can structurally never reflect real payment failure ' +
+      'volume, and propose a fix that would.',
+    note: 'Full ticket to post in Slack, in full, from the customer side: "Hey team, CS keeps ' +
+      'escalating payment failure complaints from customers, pretty steady all week across ' +
+      'several regions and payment methods, but [Day5-A] Payment Failure Watch has barely moved ' +
+      'the whole time. Monitor: [PLACEHOLDER: paste the monitor URL from your shared org here]. ' +
+      'We think it might be about how we are tracking these failures, here is the docs page we ' +
+      'were looking at: https://docs.datadoghq.com/metrics/types/. Can someone take a look?" ' +
+      'Support should treat this as the entire starting ticket, then ask clarifying and ' +
+      'testing questions back in the channel rather than guessing at the fix immediately.',
     tiers: {
       expert: [
-        'A GAUGE keeps only the last value reported inside a flush interval, a COUNT sums ' +
-        'everything reported and the Agent publishes it as a per-second rate, and a HISTOGRAM ' +
-        'computes real statistics, average, max, count, across every sample in the flush. ' +
-        'Think about which of the three submission types, applied to the same four values, ' +
-        'was ever capable of representing "total refund volume" in the first place.'
+        'This one monitor is wrong on four layers at once, and each layer independently limits ' +
+        'what the others could ever show, so fixing only one or two will still leave a monitor ' +
+        'that cannot do its job. Work through, in order: what DogStatsD submission type the ' +
+        'underlying metric actually uses and whether that type can count discrete events at ' +
+        'all; whether the query groups by anything that would let you localize a problem; ' +
+        'whether the aggregator applied to that metric could ever preserve a real signal even ' +
+        'if the type were right; and finally, whether the alert threshold was ever sized for ' +
+        'the number this query, as written, could realistically produce.'
       ],
       familiar: [
-        'Open Metrics Explorer and graph ecommerce.refunds_varied.gauge_demo, ' +
-        'ecommerce.refunds_varied.count_demo, and ecommerce.refunds_varied.histogram_demo.avg ' +
-        'side by side for the same window. They come from the exact same four numbers sent in ' +
-        'the same batch, so any difference between them tells you something about the ' +
-        'submission type, not about refunds.'
+        'Start by asking your customer character precise questions: how often does this seem to ' +
+        'happen, is it tied to one region or payment method, and roughly how many CS tickets are ' +
+        'coming in versus what the monitor shows. Then open the monitor’s exact query and check ' +
+        'four things in order: what metric it watches and how that metric is actually submitted ' +
+        'via DogStatsD, whether the query groups by region or payment_method at all, whether it ' +
+        'uses avg or sum, and what the alert threshold is set to relative to real order volume ' +
+        'in the same window.'
       ],
       beginner: [
-        'DogStatsD offers different ways to submit a number, and they do very different things ' +
-        'when several values are sent within the same short flush window. A gauge keeps only ' +
-        'whichever value arrived last and throws the rest away. A count adds every value ' +
-        'together. A histogram keeps real statistics, like the average and the worst value, ' +
-        'across everything it received.',
-        'To work through this mission, graph all three metrics for the same time window in ' +
-        'Metrics Explorer, and for the count-based ones, try the query both as a plain average ' +
-        'and with .as_count() added, since a count metric is actually published as a rate.'
+        'A monitor can be broken in more than one way at the same time, and when that happens, ' +
+        'fixing just one part of it can still leave a monitor that does not work, because the ' +
+        'other broken parts are still there underneath. This case has four such parts stacked ' +
+        'together: the way the underlying number is submitted to Datadog in the first place, ' +
+        'whether the query breaks that number down by anything meaningful, which math the query ' +
+        'uses to combine multiple values, and whether the alert threshold makes sense for ' +
+        'whatever number the query can actually produce.',
+        'To work through this mission, get the specifics from your customer character first, ' +
+        'then open the monitor and, one at a time, check the metric’s real DogStatsD submission ' +
+        'type, whether the query has any group-by at all, whether it averages or sums, and ' +
+        'whether the threshold looks realistic next to real order volume over the same window.'
       ],
       solution: [
-        'Verified live against this exact environment: gauge_demo reads 500, the last of the ' +
-        'four values sent, and nothing else. count_demo reads about 76 on a plain average ' +
-        'query, but 760, the true sum of 10+50+200+500 repeated across the flush, once queried ' +
-        'as sum:ecommerce.refunds_varied.count_demo{env:learning-week}.as_count(). ' +
-        'histogram_demo.avg reads 190, the mean of the four values, histogram_demo.max reads ' +
-        '500, and histogram_demo.count reads 4, the number of samples, once also queried with ' +
-        '.as_count().',
-        'Why the numbers differ: count_demo and histogram_demo.count are both typed RATE with ' +
-        'a 10 second statsd_interval, so a plain query divides the real per-interval total by ' +
-        '10 seconds, and .as_count() is what recovers the true total. gauge_demo, ' +
-        'histogram_demo.avg, and histogram_demo.max are typed GAUGE, so a plain query already ' +
-        'returns them directly.',
-        'Edit the monitor to point at sum:ecommerce.refunds_varied.count_demo' +
-        '{env:learning-week}.as_count() for true total refund volume, or at ' +
-        'histogram_demo.max if the business question is really about the worst single refund ' +
-        'rather than the total. gauge_demo can never answer either question, it only ever ' +
-        'shows whichever value happened to be sent last.'
+        'Four things are wrong here. First, the metric type: ' +
+        'ecommerce.failed_payments is submitted as a GAUGE, one value per event, so within any ' +
+        'short flush window a burst of several real failures collapses down to whatever the ' +
+        'last one reported, a gauge was never built to count discrete events. Second, the tags: ' +
+        'the query has no group-by on region or payment_method at all, so even a correctly ' +
+        'counted signal would still be blended across the whole platform with no way to ' +
+        'localize it. Third, the aggregation: the query uses avg, not sum, which compounds the ' +
+        'undercount: a plain avg query reads a flat 1.00 no matter how many real ' +
+        'failures happened in the window. Fourth, the config: the alert threshold is set to 50, ' +
+        'a number sized for a properly counted scale, when real order volume in the same 30 ' +
+        'minute window was 252 with the code’s flat 10% failure chance per order, roughly 25 ' +
+        'real failures expected, a number this metric, averaged, structurally cannot reach.',
+        'A real fix needs a metric submission change at the application layer, from a gauge to ' +
+        'a proper counting type, since no query change alone can recover events already ' +
+        'collapsed together inside a flush window. On top of that, the query itself needs ' +
+        'sum instead of avg, a group-by on region and payment_method so a real, localized spike ' +
+        'is visible, and a threshold recalibrated against what a correctly counted version of ' +
+        'this metric would realistically show.',
+        'Why this matters for the exercise: this is what a real, messy production monitor often ' +
+        'looks like, not one clean bug but several compounding ones, and the job is to work ' +
+        'through all four systematically with the customer’s answers and the real data, not ' +
+        'stop at the first thing that looks wrong.'
       ],
       doc: { label: 'Datadog docs on metric types (gauge, count, histogram)',
              url: 'https://docs.datadoghq.com/metrics/types/' }
-    }
-  },
-  {
-    title: 'Role Card A1 - The Slow Checkout Nobody Can Find',
-    story: 'A customer opens a ticket: "Some customers say checkout is slow, but the main ' +
-      'dashboard looks normal." That is the entire ticket. This is a live role-play mission, ' +
-      'played with a facilitator-issued customer card, not a monitor you can just open and ' +
-      'read the flaw off of. As the support engineer, your job is to ask the questions that ' +
-      'turn a five-word complaint into a specific, provable, fixable signal, using ' +
-      'ecommerce.payment.latency, tagged by region and payment_method, and whatever monitor ' +
-      'currently watches it. As an example of the target outcome: by the end of this ' +
-      'investigation you should be able to say exactly which combination of region and ' +
-      'payment method is slow, with a graph proving it, not just "checkout feels slow ' +
-      'sometimes."',
-    tiers: {
-      expert: [
-        'A payment latency metric tagged by both region and payment_method can be sliced two ' +
-        'different ways at once, and a monitor watching only the global average is blind to a ' +
-        'problem that is real but concentrated in one narrow slice of that space. Ask your ' +
-        'customer character precise, closed questions, which region, which payment method, ' +
-        'how long ago, rather than accepting "slow" as a complete symptom.'
-      ],
-      familiar: [
-        'Open ecommerce.payment.latency in Metrics Explorer and graph it once with no ' +
-        'grouping, then again grouped by region, then again grouped by payment_method. Ask ' +
-        'your customer character enough questions to know which of those breakdowns to look ' +
-        'at first.'
-      ],
-      beginner: [
-        'A global average across every region and every payment method can look completely ' +
-        'calm even while one specific combination of the two is genuinely struggling, because ' +
-        'the average blends the slow slice together with everything that is working fine.',
-        'To work through this mission, ask your customer character clarifying questions about ' +
-        'timing and scope, then graph ecommerce.payment.latency grouped by region and ' +
-        'separately by payment_method to see whether one narrow combination stands out.'
-      ],
-      solution: [
-        'The general pattern this card is built around: a global average across a metric that ' +
-        'is tagged by multiple dimensions can hide a real, localized problem that only shows ' +
-        'up once you segment by the right combination of tags together, not just one at a ' +
-        'time.',
-        'The specific region and payment method are only in the customer role card for this ' +
-        'exercise, on purpose, so this hint stops here. Get them by asking your customer ' +
-        'character precise questions, the way you would on a real ticket, then verify whatever ' +
-        'they tell you against the actual metric before trusting it.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card A2 - Cart Abandonment Nobody Saw Coming',
-    story: 'A customer opens a ticket: "Product thinks cart abandonment increased, but no ' +
-      'alert fired." That is all you get to start. This is a live role-play mission. As the ' +
-      'support engineer, use ecommerce.cart.abandonment, tagged by region and device, to find ' +
-      'out whether product’s instinct is correct, and if so, why the existing monitor missed ' +
-      'it. As an example of the target outcome: you should be able to show a graph of the ' +
-      'specific slice of traffic where abandonment genuinely climbed, and explain in plain ' +
-      'terms why the current monitor’s view of the same metric never crossed its threshold.',
-    tiers: {
-      expert: [
-        'cart.abandonment is a gauge tagged by region and device. Think about what dimension ' +
-        'a product team’s instinct is most likely tied to, mobile versus desktop behavior ' +
-        'differs enormously in checkout flows, and whether the current monitor’s grouping, or ' +
-        'lack of it, could ever surface that difference.'
-      ],
-      familiar: [
-        'Ask your customer character what changed recently, from their point of view, and over ' +
-        'what time frame. Then graph ecommerce.cart.abandonment grouped by device and ' +
-        'separately by region, and compare both breakdowns against whatever the current ' +
-        'monitor is actually querying.'
-      ],
-      beginner: [
-        'A gauge metric reports whatever the last value was for each unique combination of its ' +
-        'tags, so if a monitor does not group by a tag at all, it can only ever see one ' +
-        'blended number, even when the metric itself is perfectly capable of showing the ' +
-        'breakdown.',
-        'To work through this mission, ask your customer character enough questions to narrow ' +
-        'down what kind of shopper they mean, then graph ecommerce.cart.abandonment grouped by ' +
-        'device and by region to see where the real movement is.'
-      ],
-      solution: [
-        'The general pattern this card is built around: a gauge that genuinely spikes for one ' +
-        'device type or region can stay invisible to a monitor that either does not group by ' +
-        'that dimension at all, or that uses a threshold sized for the blended, all-traffic ' +
-        'view rather than the narrower slice that is actually moving.',
-        'The specific device and region are only in the customer role card, so this hint stops ' +
-        'here. Extract them through in-character questions, then confirm what you are told ' +
-        'against the real metric before proposing a fix.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card A3 - One Payment Method, One Quiet Region',
-    story: 'A customer opens a ticket: "One payment method seems to sell less in one region, ' +
-      'but total orders look fine." That is the whole complaint. This is a live role-play ' +
-      'mission. As the support engineer, use ecommerce.orders.count, tagged by region, ' +
-      'payment_method, and category, to figure out whether a real, localized drop is hiding ' +
-      'inside a healthy-looking total. As an example of the target outcome: you should be ' +
-      'able to show that total order volume across the whole platform is flat or growing, ' +
-      'while one specific payment-method-and-region combination is genuinely down.',
-    tiers: {
-      expert: [
-        'A count metric summed across every region and every payment method can stay flat ' +
-        'even while one specific combination inside it is falling, as long as growth ' +
-        'elsewhere offsets the drop. Think about what evidence would distinguish "this segment ' +
-        'is genuinely down" from "total volume just has normal day-to-day noise."'
-      ],
-      familiar: [
-        'Ask your customer character which kind of shopper or transaction they are worried ' +
-        'about, then graph ecommerce.orders.count grouped by payment_method and separately by ' +
-        'region, and compare each specific combination against the flat total.'
-      ],
-      beginner: [
-        'Total order volume can hide a real problem in one specific slice just as easily as it ' +
-        'can hide a real success in another slice, because addition does not care which ' +
-        'direction each piece is moving, only the sum.',
-        'To work through this mission, ask your customer character enough questions to know ' +
-        'which payment method and region to check, then graph ecommerce.orders.count broken ' +
-        'down by both at once and compare it to the flat overall total.'
-      ],
-      solution: [
-        'The general pattern this card is built around: a healthy aggregate total is not ' +
-        'evidence that every segment underneath it is healthy, only that the segments sum to ' +
-        'something acceptable. Proving or disproving a localized drop requires grouping by the ' +
-        'specific dimension the complaint is actually about, not trusting the total.',
-        'The specific payment method and region are only in the customer role card, so this ' +
-        'hint stops here. Get them in character, then verify against the real metric.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card A4 - Revenue Down, Orders Unchanged',
-    story: 'A customer opens a ticket: "Revenue dropped in one category, but order volume ' +
-      'does not explain it." That is the entire complaint. This is a live role-play mission. ' +
-      'As the support engineer, use ecommerce.orders.count and ecommerce.revenue.total ' +
-      'together, both tagged by category, to figure out how order count and revenue can tell ' +
-      'two different stories about the same category. As an example of the target outcome: ' +
-      'you should be able to show both metrics for the same category side by side and explain ' +
-      'exactly why one moved and the other did not.',
-    tiers: {
-      expert: [
-        'Order count and revenue are two different metrics measuring two different things, ' +
-        'how many transactions happened versus how much money they were worth. Think about ' +
-        'what real-world change could move one without moving the other, for a specific ' +
-        'product category.'
-      ],
-      familiar: [
-        'Ask your customer character which category they mean, then graph ' +
-        'ecommerce.orders.count and ecommerce.revenue.total for that category side by side ' +
-        'over the same window, and describe in your own words how the two lines relate to each ' +
-        'other.'
-      ],
-      beginner: [
-        'The number of orders placed and the amount of money those orders were worth are not ' +
-        'the same signal, a category can sell exactly as many units as before while each one ' +
-        'is worth less, or the same amount of money while selling far fewer, more expensive ' +
-        'items.',
-        'To work through this mission, ask your customer character which category is involved, ' +
-        'then graph order count and revenue for that category on the same timeline and compare ' +
-        'their shapes.'
-      ],
-      solution: [
-        'The general pattern this card is built around: count and revenue metrics answer ' +
-        'different business questions, and a monitor built on only one of them can look ' +
-        'perfectly healthy while the other tells a genuinely different, worrying story. Proving ' +
-        'what actually happened requires looking at both together for the same segment, not ' +
-        'assuming one implies the other.',
-        'The specific category is only in the customer role card, so this hint stops here. Ask ' +
-        'in character, then confirm both metrics for that category before proposing a fix.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card A5 - Failures That Barely Move the Needle',
-    story: 'A customer opens a ticket: "CS receives payment failure complaints, but the ' +
-      'metric barely moves." That is the whole ticket. This is a live role-play mission. As ' +
-      'the support engineer, use ecommerce.failed_payments to figure out why a metric that is ' +
-      'supposed to count failures does not seem to reflect how many customer support tickets ' +
-      'are actually coming in. As an example of the target outcome: you should be able to ' +
-      'name the specific submission-type mismatch that causes real failure events to ' +
-      'undercount, not just confirm that the number "seems low."',
-    tiers: {
-      expert: [
-        'When several distinct failure events happen close together, the DogStatsD submission ' +
-        'type used to report them determines whether each one gets counted individually or ' +
-        'collapses into a single representative value. Think about which submission types are ' +
-        'built for counting discrete events, and which ones were never designed for that job.'
-      ],
-      familiar: [
-        'Ask your customer character roughly how often these failures seem to cluster ' +
-        'together in time. Then check how ecommerce.failed_payments is actually being ' +
-        'submitted, and think about what happens to that submission type when multiple ' +
-        'failures land inside the same short flush window.'
-      ],
-      beginner: [
-        'Not every DogStatsD submission type is built to count how many times something ' +
-        'happened. Some are built to track a level or a distribution instead, and if several ' +
-        'distinct failure events occur within the same short flush window, the wrong ' +
-        'submission type can end up representing all of them as if only one had happened.',
-        'To work through this mission, find out how ecommerce.failed_payments is actually being ' +
-        'submitted, and think about whether that type is built for counting discrete events at ' +
-        'all.'
-      ],
-      solution: [
-        'The general pattern this card is built around: a metric intended to count discrete ' +
-        'events, like individual payment failures, needs a submission type built for counting, ' +
-        'a gauge or a metric that collapses multiple values in the same flush interval into ' +
-        'one representative number will systematically undercount a burst of several failures ' +
-        'happening close together.',
-        'The exact submission type in play here is part of what this card asks you to ' +
-        'discover, so this hint stops at the general mechanism. Confirm the metric’s real type ' +
-        'directly, for example via the metric metadata API, before proposing a fix.'
-      ],
-      doc: { label: 'Datadog docs on metric types (gauge, count, histogram)',
-             url: 'https://docs.datadoghq.com/metrics/types/' }
-    }
-  },
-  {
-    title: 'Role Card A6 - The Alert Nobody’s Dashboard Agreed With',
-    story: 'A customer opens a ticket: "Cart abandonment paged us for one region, but our own ' +
-      'dashboard widget for that region looked completely normal." Both the customer and the ' +
-      'monitor are describing the same underlying metric, and both readings can be correct at ' +
-      'the same time. This is a live role-play mission. As the support engineer, your job is ' +
-      'to reconcile the monitor’s query against the dashboard widget’s query before assuming ' +
-      'either one is wrong. As an example of the target outcome: you should be able to point ' +
-      'at the exact scope difference, a filter, a group-by, an aggregation, between the two ' +
-      'queries that explains why they disagree.',
-    tiers: {
-      expert: [
-        'Two views of the same metric can legitimately disagree if they scope different tag ' +
-        'filters or different aggregations, and neither one is automatically the wrong ' +
-        'answer, they may simply be answering different questions. Before trusting either the ' +
-        'page or the dashboard, get the exact query behind both.'
-      ],
-      familiar: [
-        'Pull up the monitor’s exact query and the dashboard widget’s exact query side by side. ' +
-        'Compare every filter and every group-by dimension between the two, one at a time, ' +
-        'rather than assuming they must be scoped the same way just because they show the same ' +
-        'metric name.'
-      ],
-      beginner: [
-        'A monitor and a dashboard widget can both be built on the exact same metric and still ' +
-        'show completely different pictures, if one of them filters to a specific tag value ' +
-        'the other does not, or blends together tag values the other keeps separate.',
-        'To work through this mission, get the exact query text for both the monitor and the ' +
-        'dashboard widget, and compare them line by line for any filter or grouping ' +
-        'difference.'
-      ],
-      solution: [
-        'The general pattern this card is built around: when a monitor and a dashboard widget ' +
-        'built on the same metric disagree, the first move is always to compare their exact ' +
-        'queries, not to assume the monitor is a false positive or the dashboard is stale. A ' +
-        'device filter, a region filter, or a different aggregation on one side but not the ' +
-        'other is enough to make two honest readings of the same data look like a contradiction.',
-        'The exact scope difference for this specific card is something to find by comparing ' +
-        'the two real queries yourselves, so this hint stops at the general habit to build. ' +
-        'Once you find the mismatch, decide together which scope, or which combination, ' +
-        'actually answers the operational question this region’s team needs answered.'
-      ],
-      doc: { label: 'Datadog docs on monitor configuration and dashboards',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
     }
   }
 ];
 
 const DAY5B_MISSIONS = [
   {
-    title: 'Mission 1 - Field Zone Temperature: Sensor Check',
-    story: 'Operators keep reporting a real problem in the field zone that <b>[Day5-B] Field ' +
-      'Zone Temperature - Sensor Check</b> never catches, even though the monitor looks fine ' +
-      'most of the time. The monitor averages iot.sensor.temperature across every sensor in ' +
-      'the field zone into one number. Your job is to find out what that average is actually ' +
-      'hiding, and fix the monitor so a genuinely bad reading cannot disappear inside it. As ' +
-      'an example of the target behavior: this monitor should stay quiet while every field ' +
-      'sensor reports a normal temperature, and it should alert the moment even one sensor ' +
-      'starts reporting something a real thermometer could never produce.',
+    title: 'Scenario B - Storage Sensor Uptime: The Monitor That Never Fires',
+    story: 'This is the one big role-play case for this lab. If you played support for Lab A, ' +
+      'play customer here, and vice versa. The customer side gets the complete ticket below, ' +
+      'in full, up front, and posts the whole thing into your shared Slack channel at once, ' +
+      'including the monitor link and a doc link. This is not a slow-drip mystery: support ' +
+      'gets the entire complaint immediately and works it by asking real, testable questions ' +
+      'back in the same channel and checking the actual data in the shared org. There is ' +
+      'exactly one broken monitor behind this case, <b>[Day5-B] Storage Sensor Uptime</b>, and ' +
+      'it has a complete, real-world-shaped problem: the metric it watches, the tags it does ' +
+      'not use, the window it evaluates over, and its own alert configuration are all part of ' +
+      'the same failure, not four separate ones. As an example of the target outcome: by the ' +
+      'end, support should be able to say exactly why this monitor can structurally never catch ' +
+      'a real storage sensor going quiet, and propose a fix that would.',
+    note: 'Full ticket to post in Slack, in full, from the customer side: "Hey, the ' +
+      'refrigeration team says they keep losing sensor data in the storage zone, sometimes for ' +
+      'stretches at a time, but [Day5-B] Storage Sensor Uptime has never once fired the whole ' +
+      'time this has been happening. Monitor: [PLACEHOLDER: paste the monitor URL from your ' +
+      'shared org here]. Reference doc we found: ' +
+      'https://docs.datadoghq.com/monitors/configuration/. Can someone take a look?" Support ' +
+      'should treat this as the entire starting ticket, then ask clarifying and testing ' +
+      'questions back in the channel rather than guessing at the fix immediately.',
     tiers: {
       expert: [
-        'An average across several independent sensors converges toward whatever most of them ' +
-        'are reporting, so a single sensor producing wildly invalid values, not just a bit ' +
-        'off, can pull that average into nonsense without ever being visible as "this one ' +
-        'sensor is broken." Think about what breaking the average apart by sensor would ' +
-        'reveal that the blended number cannot.'
+        'This one monitor is wrong on four layers at once, and each layer independently limits ' +
+        'what the others could ever show. Work through, in order: whether the metric being ' +
+        'watched would even change if a sensor stopped submitting data entirely, versus a ' +
+        'metric that directly counts submissions; whether the query groups by sensor_id at all; ' +
+        'whether the evaluation window is long enough to smooth a real, shorter gap into ' +
+        '"enough volume overall"; and whether the monitor’s own configuration, not just its ' +
+        'query, could keep it from ever reporting anything meaningful even once the first ' +
+        'three are fixed.'
       ],
       familiar: [
-        'Graph iot.sensor.temperature{zone:field} in Metrics Explorer with no grouping, note ' +
-        'how strange the resulting line looks, then add a group-by on sensor_id and see ' +
-        'whether one specific sensor’s line looks nothing like the others.'
+        'Ask your customer character precise questions: which sensors, how often, for how long ' +
+        'each time. Then open the monitor’s exact query and check four things in order: which ' +
+        'metric it watches and whether that metric would even be absent (not just low) when a ' +
+        'sensor skips a submission, whether it groups by sensor_id, how long its evaluation ' +
+        'window is, and whether the monitor would even notify anyone if it did correctly land ' +
+        'on No Data.'
       ],
       beginner: [
-        'Averaging several sensors together assumes they are all measuring the same real thing ' +
-        'reasonably accurately. If one sensor is malfunctioning and reporting values like ' +
-        '999.9 or negative nine hundred, blending it into an average with three healthy ' +
-        'sensors can drag the whole number into nonsense, or cancel out in a way that hides ' +
-        'the problem entirely, depending on the exact values.',
-        'To work through this mission, graph the zone-wide average first, then break it apart ' +
-        'by sensor_id and compare each sensor’s own line to spot which one is behaving ' +
-        'nothing like its neighbors.'
+        'A monitor can be broken in more than one way at the same time, and fixing only one ' +
+        'part can still leave a monitor that does not work, because the other broken parts are ' +
+        'still there underneath. This case stacks four such parts: whether the metric it watches ' +
+        'would even notice a sensor going silent, whether the query looks at each sensor ' +
+        'individually or blends them together, whether its time window is long enough to hide a ' +
+        'shorter real gap, and whether one of its own settings prevents it from reporting ' +
+        'anything useful during that gap.',
+        'To work through this mission, get the specifics from your customer character first, ' +
+        'then open the monitor and, one at a time, check what metric it watches and whether a ' +
+        'missing submission would show up in it at all, whether it groups by sensor_id, how ' +
+        'long its evaluation window is, and whether the monitor is even set up to notify anyone ' +
+        'if it lands on No Data.'
       ],
       solution: [
-        'Edit the monitor to group by sensor_id instead of averaging the whole zone into one ' +
-        'number: something in the shape of avg(last_10m):avg:iot.sensor.temperature' +
-        '{env:learning-week,zone:field} by {sensor_id}, with a threshold or an outlier-style ' +
-        'condition evaluated per sensor rather than on the blended average.',
-        'Why this works, verified live: this environment’s field zone currently has sensors ' +
-        'fd-01, fd-02, and fd-04 all reporting a normal 15 to 35 degree range, while fd-03 is ' +
-        'reporting -999.9, an invalid sentinel value, not a real temperature. The zone-wide ' +
-        'average across all four sensors currently reads around -236, a number with no ' +
-        'physical meaning at all, entirely because one broken sensor is being blended in with ' +
-        'three healthy ones.',
-        'Treat fd-03’s invalid readings as a data-quality problem to flag and fix at the ' +
-        'source, separately from whether the field zone is actually running hot. Averaging ' +
-        'across sensors in the same zone can hide one broken sensor exactly as easily as ' +
-        'averaging across zones can hide one broken zone.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card B1 - Production Lost, No Alert',
-    story: 'A customer opens a ticket: "We lost production in one area and expected an ' +
-      'alert." That is the whole complaint. This is a live role-play mission. As the support ' +
-      'engineer, use iot.sensor.temperature and the other sensor metrics, grouped by zone and ' +
-      'sensor_id, to find out what actually happened and why no monitor caught it. Verified ' +
-      'live in this environment: the real monitor meant to watch overall farm temperature ' +
-      'averages every zone together into a single number, and the zones have very different ' +
-      'normal ranges, greenhouse runs warm, storage runs cold, and field runs wide, so that ' +
-      'blended average can swing wildly for reasons that have nothing to do with any one ' +
-      'sensor failing. As an example of the target outcome: you should be able to name the ' +
-      'specific zone at risk and show, with a graph, why a single cross-farm average could ' +
-      'never represent it.',
-    tiers: {
-      expert: [
-        'Averaging across zones that have structurally different normal ranges is a different ' +
-        'and arguably worse mistake than averaging across sensors within one zone, because ' +
-        'there is no single number that is ever correct for all of them at once, verify ' +
-        'whether the monitor in question groups by zone at all before assuming a single ' +
-        'sensor is the culprit.'
-      ],
-      familiar: [
-        'Ask your customer character which zone and roughly what time frame they mean. Then ' +
-        'graph temperature with no grouping at all, then again grouped by zone, and separately ' +
-        'grouped by sensor_id within the zone your customer describes, and compare all three.'
-      ],
-      beginner: [
-        'A monitor that averages every zone on the farm together into one number is combining ' +
-        'places that are supposed to run at very different temperatures, a warm greenhouse, a ' +
-        'cold storage room, a field with wide natural swings, so that blended number can jump ' +
-        'around for reasons that have nothing to do with any single zone actually having a ' +
-        'problem.',
-        'To work through this mission, ask your customer character which zone had the loss, ' +
-        'then graph temperature grouped by zone first to see how differently each one behaves, ' +
-        'then by sensor_id within that zone.'
-      ],
-      solution: [
-        'The general pattern this card is built around, verified live: a monitor that averages ' +
-        'across zones with different normal ranges can swing unpredictably for reasons that ' +
-        'have nothing to do with any one sensor breaking, because it is combining numbers that ' +
-        'were never supposed to sit on the same scale. Do not assume the story is "one sensor ' +
-        'in the zone went rogue" until you have actually graphed that zone’s sensors ' +
-        'individually and confirmed they move together or apart.',
-        'The specific zone and the exact pattern behind its temperature swings are for you to ' +
-        'find through the role play and a real graph, so this hint stops at the general habit: ' +
-        'always check whether a farm-wide monitor groups by zone before trusting what it says ' +
-        'about any one part of the farm.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card B2 - Sensors Dying Earlier Than Expected',
-    story: 'A customer opens a ticket: "Some field sensors seem to die earlier than ' +
-      'expected." That is the entire ticket. This is a live role-play mission. As the support ' +
-      'engineer, use iot.sensor.battery to figure out whether a reactive threshold is even ' +
-      'the right tool for a problem that is fundamentally about trend and maintenance ' +
-      'planning, not a sudden event. As an example of the target outcome: you should be able ' +
-      'to argue, with evidence, whether this problem needs an earlier threshold, a trend or ' +
-      'forecast-based design, or both together.',
-    tiers: {
-      expert: [
-        'A battery level declines gradually and somewhat predictably, which is a very ' +
-        'different shape of problem from a sudden spike, think about whether a simple ' +
-        'threshold that only fires once battery is nearly gone gives anyone enough lead time ' +
-        'to act, or whether the trend itself is the more useful signal.'
-      ],
-      familiar: [
-        'Ask your customer character what "earlier than expected" means to them, in days or in ' +
-        'battery percentage. Then graph iot.sensor.battery for individual sensors over the ' +
-        'longest window available and look at the shape of the decline, not just the current ' +
-        'value.'
-      ],
-      beginner: [
-        'A battery running low is not a sudden failure, it is the end of a gradual, fairly ' +
-        'predictable decline, so a monitor that only pages once the battery is nearly dead ' +
-        'gives whoever is on call very little time to actually do anything about it.',
-        'To work through this mission, ask your customer character what timeline they care ' +
-        'about, then graph battery level over time for individual sensors and think about ' +
-        'whether the useful signal is a threshold, the rate of decline, or both.'
-      ],
-      solution: [
-        'The general pattern this card is built around: some problems are better caught by ' +
-        'their trend than by a static threshold, because by the time a simple threshold fires, ' +
-        'there may not be enough lead time left to act on it. A forecast or rate-of-change ' +
-        'approach can turn a reactive "battery is now critical" alert into a proactive ' +
-        '"battery will hit critical in roughly N days, schedule a visit" one.',
-        'The specific sensors and timeline for this card are something to establish through ' +
-        'the role play and the real metric history, so this hint stops at the general design ' +
-        'trade-off. Weigh reactive threshold against trend-based alerting, and consider ' +
-        'pairing both, before choosing.'
-      ],
-      doc: { label: 'Datadog docs on anomaly and forecast monitors',
-             url: 'https://docs.datadoghq.com/monitors/types/anomaly/' }
-    }
-  },
-  {
-    title: 'Role Card B3 - Data Loss the General Monitor Never Sees',
-    story: 'A customer opens a ticket: "Sometimes we lose data from a sensitive area, but the ' +
-      'general monitor stays quiet." That is the whole complaint. This is a live role-play ' +
-      'mission. As the support engineer, use iot.sensor.readings.count, grouped by ' +
-      'sensor_id, to figure out how a monitor watching overall reading volume for the area can ' +
-      'stay quiet even while individual sensors are dropping readings. Verified live in this ' +
-      'environment: each sensor in the sensitive area misses a real, meaningful share of its ' +
-      'expected readings, independently and unpredictably, not on a fixed schedule, and the ' +
-      'monitor watching the combined total for the whole area never reflects any single ' +
-      'sensor’s gaps because the others keep contributing enough volume to keep the sum ' +
-      'looking normal. As an example of the target outcome: you should be able to show, per ' +
-      'sensor, real stretches with missing readings that the area-wide total completely ' +
-      'absorbs.',
-    tiers: {
-      expert: [
-        'A count of total readings summed across every sensor in a sensitive area can absorb ' +
-        'real, ongoing gaps in any individual sensor’s reporting as long as the others keep ' +
-        'contributing volume, and because the drops are intermittent and independent per ' +
-        'sensor rather than one sensor going permanently dark, the area-wide total almost ' +
-        'never dips low enough to look abnormal.'
-      ],
-      familiar: [
-        'Ask your customer character which area and roughly how often this seems to happen. ' +
-        'Then graph iot.sensor.readings.count grouped by sensor_id for that area and look at ' +
-        'each sensor’s own gaps individually, rather than expecting one sensor to be ' +
-        'permanently silent while the others are perfectly steady.'
-      ],
-      beginner: [
-        'A monitor watching total reading volume across several sensors can look completely ' +
-        'healthy even while individual sensors are regularly missing readings, because the ' +
-        'other sensors keep contributing enough volume to keep the combined total looking ' +
-        'normal, the gaps only become visible once you look at each sensor on its own.',
-        'To work through this mission, ask your customer character which area is affected, ' +
-        'then graph reading count grouped by sensor_id and look for real gaps in each ' +
-        'individual sensor’s line, even while the combined total for the area looks fine.'
-      ],
-      solution: [
-        'The general pattern this card is built around, verified live: a monitor that sums ' +
-        'volume across multiple sensors treats a real, ongoing gap in one sensor’s reporting as ' +
-        'nearly invisible, as long as the other sensors in the same area keep contributing ' +
-        'enough volume to hold the combined total up. The gaps here are intermittent and ' +
-        'independent per sensor rather than one single sensor going permanently dark, which ' +
-        'makes them even easier for an area-wide total to absorb without ever looking unusual.',
-        'The specific area and the exact scale of the gaps are for you to establish through the ' +
-        'role play and the real per-sensor data, so this hint stops at the general mechanism: ' +
-        'detecting this requires watching each sensor’s own reading volume, or reasoning about ' +
-        'gaps directly, not trusting a combined total for the whole area.'
-      ],
-      doc: { label: 'Datadog docs on tags and metric segmentation',
-             url: 'https://docs.datadoghq.com/monitors/configuration/' }
-    }
-  },
-  {
-    title: 'Role Card B4 - The Sensor That Looks Wrong Next to Its Neighbors',
-    story: 'A customer opens a ticket: "One sensor looks strange compared with neighbors, but ' +
-      'the monitor is green." That is the entire ticket. This is a live role-play mission. As ' +
-      'the support engineer, your job is to figure out why a fixed threshold, wide enough to ' +
-      'tolerate normal sensor-to-sensor variation, can stay green through readings a neighbor ' +
-      'comparison would flag immediately. Verified live: the sensor this card points to does ' +
-      'not drift a little, it intermittently reports values with no physical meaning at all, ' +
-      'mixed in among perfectly ordinary ones, so a quick glance can easily land on one of its ' +
-      'normal-looking moments and miss the problem entirely. As an example of the target ' +
-      'outcome: you should be able to show that sensor next to its neighbors over a long ' +
-      'enough window that the invalid readings become obvious, even though any single glance ' +
-      'might have shown you a perfectly reasonable number.',
-    tiers: {
-      expert: [
-        'A fixed threshold defines acceptable as "inside this absolute range," which says ' +
-        'nothing about whether a reading is consistent with its immediate peers, and it says ' +
-        'even less about a sensor that is only sometimes invalid, since a wide-enough range can ' +
-        'happen to tolerate an occasional wild value by chance. Think about what a peer ' +
-        'comparison, or a check for physically impossible values, would catch that a threshold ' +
-        'sized for normal variation cannot.'
-      ],
-      familiar: [
-        'Ask your customer character which sensor and zone they mean. Graph that sensor ' +
-        'alongside its nearest neighbors in the same zone over a long enough window to catch ' +
-        'more than one reading, and look for values that a real physical measurement could ' +
-        'never actually produce, not just values that are a little high or low.'
-      ],
-      beginner: [
-        'A fixed threshold only asks "is this value inside an acceptable range," it never asks ' +
-        '"does this look like what the sensors around it are reporting," or "could this value ' +
-        'ever be physically real." A sensor that is only sometimes broken can look completely ' +
-        'normal on any single check and still be a real, ongoing problem.',
-        'To work through this mission, ask your customer character which sensor and zone are ' +
-        'involved, then graph that sensor next to its neighbors over enough time to catch it ' +
-        'in one of its bad moments, not just a single snapshot.'
-      ],
-      solution: [
-        'The general pattern this card is built around, verified live: this is the same ' +
-        'underlying sensor and data as Mission 1’s broken field sensor, looked at from a ' +
-        'different angle. It does not drift steadily away from its neighbors, it intermittently ' +
-        'reports physically impossible values, sometimes far out of range, mixed in among ' +
-        'ordinary-looking ones, so a threshold wide enough for normal variation, or a single ' +
-        'quick check, can both miss it depending on which moment you happen to look at.',
-        'The specific sensor for this card is the same one you may have already met, but the ' +
-        'point of this card is to practice noticing it through peer comparison and a long ' +
-        'enough observation window, rather than a fixed range, so confirm it yourself against ' +
-        'its neighbors before naming it.'
-      ],
-      doc: { label: 'Datadog docs on anomaly and outlier detection monitors',
-             url: 'https://docs.datadoghq.com/monitors/types/anomaly/' }
-    }
-  },
-  {
-    title: 'Role Card B5 - The Page That Disagreed With the Morning Dashboard',
-    story: 'A customer opens a ticket: "The greenhouse monitor paged us at 2am, but the ' +
-      'dashboard we check every morning showed the greenhouse well within range the whole ' +
-      'night." Both readings can be correct at the same time. This is a live role-play ' +
-      'mission. As the support engineer, your job is to reconcile the monitor’s evaluation ' +
-      'window against the dashboard widget’s rollup before assuming either one is wrong. As ' +
-      'an example of the target outcome: you should be able to point at the exact time-window ' +
-      'difference between the two views that explains why a real, brief overnight spike shows ' +
-      'up in one and gets smoothed away in the other.',
-    tiers: {
-      expert: [
-        'A monitor’s evaluation window and a dashboard widget’s display rollup are two ' +
-        'independent settings that can legitimately disagree, a short evaluation window can ' +
-        'catch a brief spike that a longer display rollup, built for a calm daily overview, ' +
-        'smooths into an unremarkable-looking flat line.'
-      ],
-      familiar: [
-        'Pull up the monitor’s exact evaluation window and the dashboard widget’s exact rollup ' +
-        'setting side by side. Think about what a brief spike, real but short, would look like ' +
-        'under each one.'
-      ],
-      beginner: [
-        'A monitor deciding whether to page and a dashboard widget meant for a quick morning ' +
-        'glance do not have to look at the data the same way. A monitor can check a short, ' +
-        'recent window every few minutes, while a dashboard rollup built to show a whole night ' +
-        'at a glance can smooth a brief spike down until it barely shows on the line at all.',
-        'To work through this mission, find the monitor’s evaluation window and the dashboard ' +
-        'widget’s rollup setting, and think through what each one would show for a spike that ' +
-        'lasted only a few minutes.'
-      ],
-      solution: [
-        'The general pattern this card is built around: when a monitor and a dashboard ' +
-        'disagree about the same underlying data, check whether they are even looking at the ' +
-        'same slice of time before concluding either one is broken. A short evaluation window ' +
-        'and a long display rollup are both legitimate settings, they simply answer different ' +
-        'questions, "did anything bad happen recently" versus "what did the whole night look ' +
-        'like at a glance."',
-        'The exact rollup and window values for this card are something to pull from the real ' +
-        'monitor and dashboard configuration together, so this hint stops at the general habit ' +
-        'to build. Once you find the mismatch, decide together whether the dashboard needs a ' +
-        'shorter rollup, an annotation for known brief spikes, or simply a note explaining why ' +
-        'the two views can differ.'
+        'Four things are wrong here. First, the metric: the ' +
+        'monitor watches iot.sensor.signal_strength, a gauge, on the assumption that a ' +
+        'struggling sensor would report a bad signal value. It would not, the storage zone’s ' +
+        'real failure mode is that a sensor sometimes does not submit any data at all that ' +
+        'cycle, so signal_strength is simply absent too, it never reports a bad number to catch. ' +
+        'iot.sensor.readings.count, a real count of submissions, is the metric that actually ' +
+        'proves data loss. Second, the tags: the query has no group-by on sensor_id, so it ' +
+        'watches the whole zone as one blended signal. Third, the window: a long evaluation ' +
+        'window smooths a real per-sensor gap into "enough volume overall." Over a ' +
+        '30 minute window, storage sensor st-01 reported in 11 of 17 possible intervals and ' +
+        'st-02 in 10 of 17, each a real, substantial gap, but the zone-wide summed total across ' +
+        'the same window never dropped below 1, the other sensor’s volume covered the gap every ' +
+        'single time. Fourth, the config: the alert threshold is set below signal_strength’s ' +
+        'real floor for this zone, a number this metric can never reach regardless of the other ' +
+        'three fixes, and notify_no_data is turned off, so even once the metric, tags, and ' +
+        'window are all fixed, a genuine gap that correctly lands the monitor on No Data would ' +
+        'still not notify anyone about it.',
+        'A real fix needs iot.sensor.readings.count instead of signal_strength, grouped by ' +
+        'sensor_id so each sensor’s own gaps are visible, a shorter evaluation window sized to ' +
+        'the actual reporting cadence rather than one long enough to average gaps away, and ' +
+        'notify_no_data turned on, since a genuinely empty window is exactly the condition this ' +
+        'case is about catching.',
+        'Why this matters for the exercise: this is what a real, messy production monitor often ' +
+        'looks like, not one clean bug but several compounding ones, and the job is to work ' +
+        'through all four systematically with the customer’s answers and the real data, not ' +
+        'stop at the first thing that looks wrong.'
       ],
       doc: { label: 'Datadog docs on monitor configuration and evaluation windows',
              url: 'https://docs.datadoghq.com/monitors/configuration/' }

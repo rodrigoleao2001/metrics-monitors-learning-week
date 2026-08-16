@@ -59,58 +59,36 @@ chmod +x monitors/create_monitors.sh
 ./monitors/create_monitors.sh
 ```
 
+## Format: One Shared Org, One Slack Channel, One Complete Ticket
+
+This lab runs as a single scenario for the whole group, not a set of small blind cards. If you played Support for Lab A, play Customer here, and vice versa.
+
+- Only **one** member of the group runs the environment (`docker compose up` above), in their own org. Everyone else connects through that same org and the shared Slack channel.
+- The Customer side gets the complete ticket text below, in full, right away, including a link to the specific broken monitor and a documentation link. The whole complaint is posted to the shared Slack channel at once, exactly like a real ticket.
+- Support receives that same complete message in Slack and works the case from there: asking follow-up questions back in the channel, checking the real data in the shared org, testing hypotheses, and proposing a fix.
+- There is exactly **one** monitor behind this whole scenario, with one complete, combined, real-world-shaped problem, not several small separate ones.
+
 ## Customer Role
 
-The facilitator will give you a scenario card. Write a vague support ticket from that card.
+Post this complete message into the shared Slack channel, filling in the monitor link from your shared org:
 
-Do not reveal the zone, sensor, failure pattern, or expected monitor type immediately. Reveal details only when the support engineer asks precise questions.
+> Hey, the refrigeration team says they keep losing sensor data in the storage zone, sometimes for stretches at a time, but **[Day5-B] Storage Sensor Uptime** has never once fired the whole time this has been happening. Monitor: `[PASTE THE MONITOR URL FROM YOUR SHARED ORG HERE]`. Reference doc we found: https://docs.datadoghq.com/monitors/configuration/. Can someone take a look?
 
-## Support Engineer Role
+## Support Role
 
-1. Clarify zone, sensor, timeframe, and impact.
-2. Investigate metrics grouped by `zone` and `sensor_id`.
-3. Identify what the current monitors miss.
-4. Propose two monitor designs before choosing one.
+1. Ask clarifying questions back in the channel: which sensors, how often, for how long each time.
+2. Investigate metrics grouped by `zone` and `sensor_id`, and the monitor's exact query and evaluation options.
+3. Identify everything the current monitor gets wrong, there is more than one thing.
+4. Propose a fix.
 5. Explain the fix in simple customer language.
 
-Do not read the customer's scenario card.
+Before proposing a fix, deliver:
 
-Before changing any monitor, deliver:
-
-- what the current monitor misses
-- one rejected alternative hypothesis
-- two possible fixes
-- why you chose one fix
-- the final customer explanation
-
-## Mission 1 - Field Zone Temperature: Sensor Check
-
-This mission is a direct technical exercise, not a customer role card.
-
-The field zone monitor looks fine most of the time, but the operators keep reporting a problem in that zone that it never catches.
-
-Starting points:
-
-1. Open `[Day5-B] Field Zone Temperature`.
-2. Read the query and write down exactly which sensors it covers and what it does with their readings.
-3. Plot `iot.sensor.temperature{zone:field}` in Metrics Explorer and break it down until you can see the sensors apart from each other.
-4. Decide what the number the monitor evaluates is not telling you about that zone.
-
-Before changing the monitor, deliver:
-
-- the current monitor flaw in one sentence
+- everything the current monitor gets wrong, in your own words
 - one rejected alternative hypothesis
 - two possible fixes and the trade-off between them
-- the evidence that made you choose the final fix
-- a customer-ready explanation
-
-Stretch challenge:
-
-- Propose a design that still gives the operators one zone-level view without letting any single source disappear inside it.
-
-Expert defense:
-
-- Explain how you would tell a genuinely hot sensor apart from a sensor sending invalid readings.
+- the evidence that made you choose one
+- the final customer explanation
 
 ## Extra Investigation - Outliers
 
