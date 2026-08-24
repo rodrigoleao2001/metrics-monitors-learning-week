@@ -549,7 +549,20 @@ def _is_real(value):
 
 
 def write_env(updates):
-    """Update or append keys in .env, leaving every other line untouched."""
+    """Update or append keys in .env, leaving every other line untouched.
+
+    DD_API_KEY and DD_APP_KEY are never allowed to end up in this file, under
+    any path. The most common way they used to: .env.example ships with
+    placeholder lines for both, and when .env does not exist yet this
+    function seeds it from that template, then only ever touched the keys
+    named in `updates` (historically just DD_SITE), leaving the placeholder
+    text `your_api_key_here` sitting in .env as a real value. Every lab
+    script sources .env directly and unconditionally, so that placeholder
+    silently overwrote the real key this process had already injected from
+    the keychain, and Datadog rejected it with a 401 that looked nothing
+    like a credentials problem. Both keys are stripped here on every write,
+    regardless of where the line came from, so this cannot recur.
+    """
     lines = []
     if os.path.isfile(ENV_PATH):
         try:
@@ -563,6 +576,9 @@ def write_env(updates):
                 lines = fh.read().splitlines()
         except OSError:
             lines = []
+
+    lines = [ln for ln in lines
+             if ln.strip().split("=", 1)[0].strip() not in ("DD_API_KEY", "DD_APP_KEY")]
 
     remaining = dict(updates)
     for i, line in enumerate(lines):
