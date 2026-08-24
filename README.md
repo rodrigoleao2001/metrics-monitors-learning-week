@@ -100,9 +100,9 @@ pick another one: `LAB_UI_PORT=8766 ./start-ui.sh`.
 
 What it gives you:
 
-- a credentials form that writes your keys to `.env`, plus a **Test connection**
-  button that asks Datadog whether they actually work before you spend ten
-  minutes on a setup run
+- a credentials form that stores your keys in the macOS login keychain (never
+  in a file), plus a **Test connection** button that asks Datadog whether they
+  actually work before you spend ten minutes on a setup run
 - a check of Docker and your keys, with the specific fix when something is missing
 - Start, Check, Stop and Clean for each day, with live output and a real progress
   bar driven by the setup script's own steps
@@ -141,6 +141,42 @@ argument, so it is briefly visible to `ps` for your own user during that one
 write. And once a lab is running, the Datadog Agent container holds the API key
 in its own environment, where `docker inspect` can read it: the Agent needs the
 key to send data, so no storage choice avoids that.
+
+### If Save says it worked but the keys never show as stored
+
+Rare, but seen in practice: the panel says the keys were saved, "Test
+connection" or the credentials panel then say nothing is there at all, and a
+day's setup fails on a 401 even though the keys are correct. This is not a
+lost save. The write itself succeeded; macOS is refusing to hand the value
+back on read, most often because the keychain item ended up behind an
+access-confirmation prompt that this background process has no window to
+show, so the read fails silently instead of asking you anything. The panel
+now names this directly instead of just looking empty ("Saved, but the
+keychain will not read a key back"), with the real macOS error underneath.
+
+Fix it in Keychain Access:
+
+1. Open **Keychain Access** (Spotlight, type its name).
+2. Search for `learning-week-datadog`.
+3. Open the item (there is one per key, named `DD_API_KEY` and `DD_APP_KEY`).
+4. If it prompts you for a decision on access, choose **Always Allow**, not
+   Allow Once.
+5. Back in the panel, press **Test connection** again.
+
+If that still does not resolve it, or the keychain is not usable on this
+machine at all, fall back to the plain-file path: open the hidden `.env` file
+at the repo root (`Cmd+Shift+.` in Finder to see hidden files, or `ls -a` in a
+terminal) and add your keys directly:
+
+```
+DD_API_KEY=your32characterapikey
+DD_APP_KEY=your40characterapplicationkey
+DD_SITE=datadoghq.com
+```
+
+The lab scripts read `.env` directly regardless of what the keychain is
+doing, so this works even while the panel's own keychain read stays broken.
+`.env` is one file shared by all five days, so this only needs doing once.
 
 ## Daily Setup
 

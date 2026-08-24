@@ -849,11 +849,27 @@ function isUnchanged(id) {
 function renderCredentials(cs) {
   const both = cs.api_key_set && cs.app_key_set;
   const some = cs.api_key_set || cs.app_key_set;
-  $('cred-glyph').innerHTML = glyph(both ? 'good' : 'warning');
-  $('cred-summary').textContent = both
-    ? `Datadog credentials saved for ${cs.site}`
-    : some ? 'One Datadog key is still missing'
-           : 'Datadog credentials needed';
+  // A key can be saved successfully and still fail to read back, most often
+  // because macOS put it behind an access-confirmation prompt this
+  // background process cannot show. Without calling that out by name, it
+  // looks exactly like nothing was ever saved, which is what actually
+  // happened here once already.
+  if (cs.keychain_read_error) {
+    $('cred-glyph').innerHTML = glyph('warning');
+    $('cred-summary').textContent = 'Saved, but the keychain will not read a key back';
+    credResult('warning', [
+      cs.keychain_read_error,
+      'Open Keychain Access, search for learning-week-datadog, open the item, and '
+      + 'if it asks for a decision on access, choose Always Allow. Then press Test '
+      + 'connection.',
+    ]);
+  } else {
+    $('cred-glyph').innerHTML = glyph(both ? 'good' : 'warning');
+    $('cred-summary').textContent = both
+      ? `Datadog credentials saved for ${cs.site}`
+      : some ? 'One Datadog key is still missing'
+             : 'Datadog credentials needed';
+  }
 
   if (!siteBuilt) {
     $('in-site').innerHTML = cs.sites

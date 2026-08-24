@@ -462,14 +462,32 @@ KEYCHAIN_SERVICE = "learning-week-datadog"
 USE_KEYCHAIN = sys.platform == "darwin" and shutil.which("security") is not None
 
 
-def keychain_get(account):
+def _keychain_read(account):
+    """Read one account, distinguishing "genuinely nothing saved" from every
+    other failure. Both used to collapse into the same empty string, which
+    is exactly the confusing case reported in practice: Save writes the key
+    successfully (add-generic-password returns 0), but macOS puts that item
+    behind an access-confirmation prompt, and a background process like this
+    one has no window to show that prompt in, so every read after that point
+    silently fails. The panel looked identical to nothing ever having been
+    saved, so the actual cause took a live debugging session to find; this
+    is what should have surfaced it immediately instead."""
     if not USE_KEYCHAIN:
-        return ""
+        return "", "the login keychain is not available on this platform"
     p = subprocess.run(
         ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE,
          "-a", account, "-w"],
         capture_output=True, text=True)
-    return p.stdout.strip() if p.returncode == 0 else ""
+    if p.returncode == 0:
+        return p.stdout.strip(), None
+    stderr = (p.stderr or "").strip()
+    if p.returncode == 44 or "could not be found" in stderr.lower():
+        return "", None  # genuinely never saved, not an error
+    return "", (stderr or f"security exited {p.returncode}")[:200]
+
+
+def keychain_get(account):
+    return _keychain_read(account)[0]
 
 
 def keychain_set(account, value):
@@ -624,7 +642,8 @@ def mask_key(value):
 
 def credentials_state():
     env = read_env()
-    api, app = stored_keys()
+    api, api_err = _keychain_read("DD_API_KEY")
+    app, app_err = _keychain_read("DD_APP_KEY")
     return {
         "api_key_set": _is_real(api),
         "app_key_set": _is_real(app),
@@ -633,6 +652,10 @@ def credentials_state():
         "site": env.get("DD_SITE", "") or "datadoghq.com",
         "sites": DD_SITES,
         "env_exists": os.path.isfile(ENV_PATH),
+        # Set only when a read genuinely failed, as opposed to nothing being
+        # saved yet, so a save-then-read mismatch is visible instead of
+        # looking exactly like an empty credentials panel.
+        "keychain_read_error": api_err or app_err,
     }
 
 
@@ -1356,7 +1379,31 @@ class Handler(BaseHTTPRequestHandler):
 
             # Verify what is now on disk, so a save is confirmed in one step and
             # nobody has to paste the keys again just to check them.
-            saved_api, saved_app = stored_keys()
+            saved_api, api_read_err = _keychain_read("DD_API_KEY")
+            saved_app, app_read_err = _keychain_read("DD_APP_KEY")
+            read_err = api_read_err or app_read_err
+            if read_err:
+                # The write above already reported success (add-generic-password
+                # returned 0), so the key really is in the keychain. This read
+                # failing right after is macOS refusing to hand it back, most
+                # often because the item is behind an access-confirmation prompt
+                # this background process cannot show. Say that plainly instead
+                # of feeding empty strings into verify_credentials, which would
+                # otherwise report a real key as "rejected by Datadog".
+                return self._send(200, {
+                    "saved": True,
+                    "credentials": credentials_state(),
+                    "verification": {
+                        "api_key": "unknown", "app_key": "unknown", "site": site,
+                        "messages": [
+                            f"Saved, but the keychain would not hand the key back "
+                            f"to read it for verification: {read_err}",
+                            "Open Keychain Access, search for learning-week-datadog, "
+                            "open the item, and if it asks for a decision on access, "
+                            "choose Always Allow. Then press Test connection.",
+                        ],
+                    },
+                })
             verification = verify_credentials(saved_api, saved_app, site)
             return self._send(200, {
                 "saved": True,
