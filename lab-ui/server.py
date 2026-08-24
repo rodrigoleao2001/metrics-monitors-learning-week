@@ -628,6 +628,19 @@ def _get_json(url, headers, timeout=15):
         return 0, str(exc).encode()
 
 
+def _post_json(url, headers, body, timeout=15):
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, headers={**headers, "Content-Type": "application/json"},
+                                  method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read(4096)
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read(4096) if exc.fp else b""
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        return 0, str(exc).encode()
+
+
 def verify_credentials(api_key, app_key, site):
     """Ask Datadog whether the keys work, so nobody discovers a typo ten
     minutes into a setup run. Two calls: the documented API key validation
@@ -660,10 +673,8 @@ def verify_credentials(api_key, app_key, site):
         result["app_key"] = "missing"
         return result
 
-    status, _ = _get_json(
-        base + "/api/v1/monitor/search?query=&per_page=1",
-        {"DD-API-KEY": api_key, "DD-APPLICATION-KEY": app_key},
-    )
+    app_headers = {"DD-API-KEY": api_key, "DD-APPLICATION-KEY": app_key}
+    status, _ = _get_json(base + "/api/v1/monitor/search?query=&per_page=1", app_headers)
     if status == 200:
         result["app_key"] = "valid"
     elif status == 403:
@@ -680,6 +691,28 @@ def verify_credentials(api_key, app_key, site):
     else:
         result["app_key"] = "unknown"
         result["messages"].append(f"Unexpected reply from the monitors endpoint: HTTP {status}.")
+        return result
+
+    # Reading monitors only proves monitors_read. Every lab's last setup step
+    # creates real monitors, which needs monitors_write specifically, and a
+    # key scoped to read-only passes everything above while still failing
+    # that exact step with a 401, well after Docker and the Agent are already
+    # up. /monitor/validate exercises the same write permission as a real
+    # create call without actually creating anything, so this catches a
+    # read-only key here instead of at the very last step of setup.
+    if result["app_key"] == "valid":
+        status, body = _post_json(
+            base + "/api/v1/monitor/validate", app_headers,
+            {"type": "metric alert", "query": "avg(last_5m):avg:system.load.1{*} > 100"},
+        )
+        if status not in (200,):
+            result["app_key"] = "no_permission"
+            detail = body.decode(errors="replace")[:200] if body else f"HTTP {status}"
+            result["messages"].append(
+                "The application key can read monitors but cannot create them "
+                f"(monitors_write check failed: {detail}). Every lab's setup script "
+                "creates real monitors as its last step, so this key needs "
+                "monitors_write, not just monitors_read.")
     return result
 
 

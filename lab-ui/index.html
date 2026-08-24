@@ -950,7 +950,7 @@ function credPayload() {
 
 const VERDICT = {
   valid: 'works', invalid: 'rejected by Datadog', missing: 'not provided',
-  no_permission: 'valid but cannot read monitors', unknown: 'could not be checked',
+  no_permission: 'valid but missing a required permission, see below', unknown: 'could not be checked',
 };
 
 /* Render a verification result. `prefix` names what was actually tested, so a
