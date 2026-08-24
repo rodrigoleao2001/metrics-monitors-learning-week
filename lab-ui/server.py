@@ -491,11 +491,24 @@ def keychain_get(account):
 
 
 def keychain_set(account, value):
+    """Store one key. -T explicitly pre-authorizes the `security` binary
+    itself to read this item back without a confirmation prompt.
+
+    Without -T, an item can end up needing a per-read access decision from
+    whichever process asks, and a background process with no window to show
+    that decision in just gets a silent failed read: the value is genuinely
+    in the keychain, but every read after the write comes back empty, which
+    looks exactly like nothing was ever saved. -T /usr/bin/security fixes
+    that for every future read through this same CLI, regardless of which
+    parent process spawns it, since that is the only thing this code ever
+    uses to read a key back.
+    """
     if not USE_KEYCHAIN:
         return False, "the login keychain is not available on this platform"
     p = subprocess.run(
         ["security", "add-generic-password", "-U", "-s", KEYCHAIN_SERVICE,
          "-a", account, "-w", value,
+         "-T", "/usr/bin/security",
          "-D", "Learning Week lab credential",
          "-j", "Stored by the Learning Week lab control panel"],
         capture_output=True, text=True)
