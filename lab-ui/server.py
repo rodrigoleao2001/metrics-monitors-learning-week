@@ -557,10 +557,15 @@ def write_env(updates):
 def check_key_shape(kind, value):
     """Catch the paste mistakes, not the format itself.
 
-    A Datadog API key is 32 hex characters and an application key is 40, but
-    the check stays a hint rather than a hard rule so a future format change
-    cannot lock anyone out. Whitespace and quotes are rejected outright
-    because they are always a copy-paste accident and they always break .env.
+    A Datadog API key is 32 hex characters. An application key is 40
+    characters, but that 40 now covers two real shapes: the legacy 40 hex
+    characters, and the newer `ddapp_` prefix followed by 34 alphanumeric
+    characters (mixed case), which is not hex and would otherwise be
+    rejected. Reported by Edwards Rodriguez, whose real ddapp_-style key was
+    failing this check. The length gate above stays a hint rather than a
+    hard rule so a future format change cannot lock anyone out. Whitespace
+    and quotes are rejected outright because they are always a copy-paste
+    accident and they always break .env.
     """
     expected = 32 if kind == "api" else 40
     label = "API key" if kind == "api" else "application key"
@@ -575,7 +580,11 @@ def check_key_shape(kind, value):
     if len(value) != expected:
         return False, (f"a Datadog {label} is {expected} characters, "
                        f"this one is {len(value)}, check for a truncated paste")
-    if not re.fullmatch(r"[0-9a-fA-F]+", value):
+    if kind == "app":
+        if not re.fullmatch(r"ddapp_[0-9A-Za-z]{34}|[0-9a-fA-F]{40}", value):
+            return False, (f"a Datadog {label} is either 40 hex characters (0-9, a-f) "
+                           "or the newer ddapp_ prefix followed by 34 letters/digits")
+    elif not re.fullmatch(r"[0-9a-fA-F]+", value):
         return False, f"a Datadog {label} uses only the characters 0 to 9 and a to f"
     return True, "looks right"
 

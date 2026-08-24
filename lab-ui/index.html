@@ -324,6 +324,7 @@
     grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   }
   .card {
+    position: relative;
     background: var(--surface-1); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 15px 16px 14px;
     display: flex; flex-direction: column; gap: 12px;
@@ -332,6 +333,18 @@
   }
   .card.is-up     { border-color: rgba(12,163,12,.42); }
   .card.is-busy   { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand-soft); }
+
+  /* First-time setup estimate, pinned to the card's actual corner so it never
+     collides with the status pill sitting inside the card-top flex row. */
+  .setup-time {
+    position: absolute; top: 0; right: 0;
+    font-size: 10px; font-weight: 650; letter-spacing: .01em;
+    color: var(--text-secondary);
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    border-radius: 0 var(--radius) 0 8px;
+    padding: 3px 8px 3px 9px;
+    white-space: nowrap;
+  }
 
   /* The title is a single line now, so centre it against the day badge. */
   .card-top { display: flex; align-items: center; gap: 11px; }
@@ -1096,7 +1109,23 @@ $('pf-toggle').addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPfOpen(!pfOpen); }
 });
 
-/* ---- render: day cards ---- */
+/* ---- render: day cards ----
+   First-time setup estimate per day. These are rough guidance, not a
+   measured guarantee: they assume Docker/minikube images have never been
+   pulled or built on this machine before, which is the slow path a first
+   run actually hits. A second run on the same machine is faster because
+   those images are already cached locally. Day 2 runs a real minikube
+   cluster instead of a couple of containers, which is why it is the
+   outlier. Adjust these if your own network or hardware runs meaningfully
+   faster or slower than assumed here. */
+const FIRST_SETUP_MINUTES = {
+  1: '~5-8 min first time',
+  2: '~15-20 min first time',
+  3: '~5-8 min first time',
+  4: '~6-9 min first time',
+  5: '~8-12 min first time',
+};
+
 function renderDays(st) {
   const busy = st.job && st.job.running;
   const ready = st.preflight.ready;
@@ -1118,6 +1147,7 @@ function renderDays(st) {
     return `
       <article class="card ${isUp ? 'is-up' : ''} ${thisBusy ? 'is-busy' : ''}"
                title="${esc(d.detail)}">
+        ${FIRST_SETUP_MINUTES[n] ? `<div class="setup-time" title="Estimate for someone bringing this lab up for the first time on a machine with no cached images yet">${esc(FIRST_SETUP_MINUTES[n])}</div>` : ''}
         <div class="card-top">
           <div class="daynum">${n}</div>
           <div class="card-title">${esc(d.title)}</div>
