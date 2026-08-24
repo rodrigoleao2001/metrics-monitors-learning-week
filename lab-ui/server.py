@@ -1266,6 +1266,14 @@ class Handler(BaseHTTPRequestHandler):
             if site not in DD_SITES:
                 return self._send(400, {"error": f"unknown Datadog site {site}"})
 
+            # A successful test against a given site is a declaration of intent
+            # to use that site, so persist it here too, exactly like Save does.
+            # Without this, switching the dropdown and testing without also
+            # pressing Save leaves .env pointing at the old site: the test
+            # reports success against the new one, but every lab script still
+            # reads the stale DD_SITE and gets a 401 from the real run.
+            write_env({"DD_SITE": site})
+
             if payload.get("use_saved") and not api_key and not app_key:
                 api_key, app_key = stored_keys()
                 if not _is_real(api_key) or not _is_real(app_key):
