@@ -322,6 +322,25 @@ class Job:
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def _run(self):
+        # A setup run needs a running container runtime before its own script
+        # can do anything useful. Rather than making that a separate manual
+        # step the participant has to notice and click through first, fold it
+        # into this same job: install Colima via Homebrew if nothing is here
+        # at all, start it if it exists but is not running, and only then
+        # launch the day's actual setup script. Nothing here is interactive,
+        # so it is safe to run with stdin closed, unlike shared/bootstrap.sh's
+        # own Docker install prompt, which this bypasses entirely.
+        if self.action == "setup" and not docker_engine_up():
+            self.buf += b"[0/1] Making sure a container runtime is installed and running\n"
+            _boot_docker()
+            boot = docker_boot_state()
+            if boot["state"] != "ready":
+                self.buf += (boot["detail"] or "container runtime did not come up").encode() + b"\n"
+                self.returncode = 1
+                self.finished = time.time()
+                return
+            self.buf += f"{boot['runtime'] or 'Container runtime'} is running\n".encode()
+
         path = os.path.join(ROOT, self.script)
         try:
             os.chmod(path, 0o755)
@@ -808,14 +827,52 @@ def docker_boot_state():
         return dict(_docker_boot)
 
 
-def _boot_docker():
-    kind, path = docker_runtime()
+def _install_colima():
+    """Install Colima and the docker CLI via Homebrew, for a machine that has
+    neither. Homebrew itself is deliberately never auto-installed here: piping
+    its installer script from the internet during an unattended flow is a much
+    bigger, riskier step than installing a package through a package manager
+    the person already chose to have on their machine, so that one step stays
+    manual. Returns True once `docker_runtime()` can see Colima afterward."""
+    with _docker_lock:
+        _docker_boot.update(
+            state="installing", runtime="Colima",
+            detail="Installing Colima and the docker CLI via Homebrew, this can take a "
+                   "few minutes the first time")
+    rc, out, err = _run(["brew", "install", "colima", "docker", "docker-compose"], timeout=900)
+    if rc != 0:
+        with _docker_lock:
+            _docker_boot.update(
+                state="failed", runtime="Colima",
+                detail=f"Homebrew install failed: {(err or out or 'unknown error').strip()[-300:]}")
+        return False
+    kind, _ = docker_runtime()
     if kind is None:
         with _docker_lock:
             _docker_boot.update(
-                state="unsupported", runtime="",
-                detail="No Docker runtime here that the panel knows how to start.")
-        return
+                state="failed", runtime="Colima",
+                detail="Homebrew reported success, but colima is still not on PATH. "
+                       "Open a new terminal window and press Start again.")
+        return False
+    return True
+
+
+def _boot_docker():
+    kind, path = docker_runtime()
+    if kind is None:
+        if shutil.which("brew"):
+            if not _install_colima():
+                return
+            kind, path = docker_runtime()
+        else:
+            with _docker_lock:
+                _docker_boot.update(
+                    state="unsupported", runtime="",
+                    detail="No Docker runtime here that the panel knows how to start, and "
+                           "Homebrew is not installed either, so it cannot install Colima "
+                           "on its own. Install Homebrew from https://brew.sh, then press "
+                           "Start again.")
+            return
 
     label = os.path.basename(path).replace(".app", "") if kind == "app" else "Colima"
     with _docker_lock:
@@ -905,7 +962,9 @@ def _check_docker_running_live():
         return {"ok": True, "mem_gib": mem_gib,
                 "detail": f"engine running, {mem_gib} GiB available to containers"}
     boot = docker_boot_state()
-    if boot["state"] == "starting":
+    if boot["state"] == "installing":
+        detail = boot["detail"]
+    elif boot["state"] == "starting":
         detail = f"{boot['detail']}, {boot['waited']}s so far"
     elif boot["state"] in ("failed", "unsupported"):
         detail = boot["detail"]
@@ -988,7 +1047,10 @@ def preflight():
         "ok": dr["ok"],
         "detail": dr["detail"],
         # Lets the panel show a spinner and hold the buttons instead of an alarm.
-        "starting": (not dr["ok"]) and docker_boot_state()["state"] == "starting",
+        # Installing covers a from-scratch machine that had no runtime at all,
+        # where Colima itself is being installed via Homebrew before it can
+        # even be started.
+        "starting": (not dr["ok"]) and docker_boot_state()["state"] in ("starting", "installing"),
     })
 
     keys_ok, keys_detail = _env_keys_present()
@@ -1010,13 +1072,27 @@ def preflight():
 
     blocking = [c for c in checks if not c["ok"] and not c.get("advisory")]
     boot = docker_boot_state()
+    can_start_docker = docker_runtime()[0] is not None or shutil.which("brew") is not None
+    # credentials really is the one thing nobody but the participant can supply.
+    # The runtime, in contrast, a Start press can now install and start on its
+    # own (Job._run does exactly that before it launches a day's own setup
+    # script), so a day's Start button should not sit disabled just because
+    # Colima happens to not be running yet, as long as something can bring it
+    # up. Only a genuinely unrecoverable runtime state (no runtime, no
+    # Homebrew either) still blocks it.
+    blocking_ids = {c["id"] for c in blocking}
+    can_start_lab = keys_ok and (blocking_ids.issubset({"docker-installed", "docker-running"})
+                                  if can_start_docker else not blocking)
     return {
         "checks": checks,
         "ready": not blocking,
+        "can_start_lab": can_start_lab,
         "memory_gib": dr["mem_gib"],
         "docker_boot": boot,
-        # Can the panel offer to start the runtime for you at all?
-        "can_start_docker": docker_runtime()[0] is not None,
+        # Can the panel offer to start the runtime for you at all? Also true
+        # with no runtime installed yet but Homebrew present, since _boot_docker
+        # installs Colima through it before trying to start anything.
+        "can_start_docker": can_start_docker,
         # So the UI never has to name a product the policy is moving away from.
         "runtime_label": runtime_label(),
         "memory_advice": memory_advice(),

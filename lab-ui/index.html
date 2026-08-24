@@ -1026,7 +1026,9 @@ function renderPreflight(pf) {
   if (booting) {
     tone = 'busy';
     const b = pf.docker_boot || {};
-    text = `Starting ${b.runtime || 'Docker'} for you, this usually takes under a minute`;
+    text = b.state === 'installing'
+      ? `Installing ${b.runtime || 'Colima'} for you, this can take a few minutes the first time`
+      : `Starting ${b.runtime || 'Docker'} for you, this usually takes under a minute`;
   } else if (blocking.length) {
     tone = 'critical';
     text = blocking.length === 1
@@ -1054,30 +1056,41 @@ function renderPreflight(pf) {
   const need = new Set(blocking.map(c => c.id));
   let fix = '';
   const boot = pf.docker_boot || {};
-  if (need.has('docker-installed')) {
-    fix = `<b>Install a container runtime.</b> Datadog's recommended default is
-           <code>brew install colima docker docker-compose</code>, then
-           <code>colima start --cpu 4 --memory 12</code>. Rancher Desktop or podman
-           also work. This panel notices on its own within a few seconds.`;
+  // Checked before docker-installed on purpose: while Colima is being
+  // installed, the docker CLI is not on PATH yet either, so that check is
+  // still "blocking" too, and would otherwise override this with instructions
+  // to install manually while an install is already running.
+  if (booting && boot.state === 'installing') {
+    fix = `<b>Installing ${esc(boot.runtime || 'Colima')} for you via Homebrew.</b>
+           Nothing for you to do. This can take a few minutes the first time, then the
+           panel moves on to starting it.`;
   } else if (booting) {
     fix = `<b>${esc(boot.runtime || 'Docker')} is starting.</b> Nothing for you to do.
            The Start buttons unlock by themselves once the engine accepts connections.
            A first-ever launch can also be waiting for you to accept its licence
            agreement, so glance at the ${esc(boot.runtime || 'Docker')} window if this
            takes more than a minute.`;
-  } else if (need.has('docker-running')) {
+  } else if (need.has('docker-installed') || need.has('docker-running')) {
+    // Both checks funnel into the same button: whether nothing is installed
+    // yet, or a runtime exists but is not running, the panel can act on
+    // either case for you as long as it has something to work with (an
+    // existing runtime, or Homebrew to install Colima with).
     if (boot.state === 'failed') {
       fix = `<b>${esc(boot.runtime || 'Docker')} did not come up.</b>
              ${esc(boot.detail)}<br><br>
-             <button class="act primary" id="btn-docker" type="button">Try starting Docker again</button>`;
+             <button class="act primary" id="btn-docker" type="button">Try again</button>`;
     } else if (pf.can_start_docker) {
-      fix = `<b>${esc(pf.runtime_label || 'Your container runtime')} is not running.</b>
-             The panel can start it for you.<br><br>
-             <button class="act primary" id="btn-docker" type="button">Start it</button>`;
+      const installing = need.has('docker-installed');
+      fix = `<b>${installing ? 'No container runtime found.'
+                              : esc(pf.runtime_label || 'Your container runtime') + ' is not running.'}</b>
+             The panel can ${installing ? 'install Colima via Homebrew and start it' : 'start it'}
+             for you.<br><br>
+             <button class="act primary" id="btn-docker" type="button">${installing ? 'Install & start' : 'Start it'}</button>`;
     } else {
-      fix = `<b>Start your container runtime.</b> The panel could not find Colima,
-             Rancher Desktop or Docker Desktop in the usual places, so start it however
-             you normally do. This panel notices on its own within a few seconds.`;
+      fix = `<b>Install a container runtime.</b> Datadog's recommended default is
+             <code>brew install colima docker docker-compose</code>, then
+             <code>colima start --cpu 4 --memory 12</code>. Rancher Desktop or podman
+             also work. This panel notices on its own within a few seconds.`;
     }
   } else if (need.has('credentials')) {
     fix = `<b>Add your Datadog keys</b> in the credentials panel above, then press Save.
@@ -1128,7 +1141,13 @@ const FIRST_SETUP_MINUTES = {
 
 function renderDays(st) {
   const busy = st.job && st.job.running;
-  const ready = st.preflight.ready;
+  // Not the same as full preflight readiness: Start itself now installs and
+  // starts the container runtime as part of the run, so a day should be
+  // startable as soon as credentials are in place and the runtime is either
+  // already fine or something the panel can act on (an existing runtime, or
+  // Homebrew to install Colima with). Only a genuinely stuck runtime state
+  // still holds the button.
+  const canStartLab = st.preflight.can_start_lab;
   const nums = Object.keys(st.days).map(Number).sort((a, b) => a - b);
 
   $('grid').innerHTML = nums.map(n => {
@@ -1136,7 +1155,7 @@ function renderDays(st) {
     const meta = STATE_META[d.state] || STATE_META.down;
     const thisBusy = busy && st.job.day === n;
     const isUp = d.state === 'up' || d.state === 'partial';
-    const dis = (busy || !ready) ? 'disabled' : '';
+    const dis = (busy || !canStartLab) ? 'disabled' : '';
 
     // A day that was never started has nothing worth reporting, so it gets no
     // badge at all. Only a state the participant may need to act on shows one.
